@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase.js"></script>
-<script>
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#3693ff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Furgone AR7</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--blu:#3693ff;--blu-dark:#1a7aee;--verde:#007d04;--verde-dark:#005a03;--grigio-bg:#f4f5f8;--testo:#1a1a2e;--testo2:#555577;--bordo:#e0e0f0;--danger:#c0392b}
@@ -21,13 +19,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .logo-circle img{width:100%;height:100%;object-fit:contain}
 .logo-placeholder{font-size:11px;font-weight:700;color:var(--blu);text-align:center;line-height:1.1}
 .badge-role{font-size:10px;background:var(--verde);color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;text-transform:uppercase}
-.content{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px}
+.content{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;padding-bottom:80px}
 .card{background:#fff;border-radius:14px;border:0.5px solid var(--bordo);padding:16px;box-shadow:0 1px 4px rgba(0,38,255,.05)}
-.card-title{font-size:13px;font-weight:600;color:var(--testo2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.card-title{font-size:13px;font-weight:600;color:var(--testo2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
 label{font-size:13px;color:var(--testo2);margin-bottom:4px;display:block}
 input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--bordo);border-radius:9px;font-size:15px;color:#000;background:#fff;outline:none;transition:border .2s}
 input:focus,select:focus{border-color:var(--blu)}
-input::placeholder{color:#3d3d3d}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .field{display:flex;flex-direction:column;gap:4px}
 .btn{width:100%;padding:13px;border:none;border-radius:11px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s}
@@ -91,10 +88,13 @@ input::placeholder{color:#3d3d3d}
 .reg-result-title{font-size:13px;color:var(--verde);font-weight:600;margin-bottom:8px}
 .reg-credential{background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid #b8e6ba}
 .reg-credential-label{font-size:11px;color:var(--testo2);margin-bottom:2px}
-.reg-credential-value{font-size:16px;font-weight:700;color:var(--testo);font-family:monospace;word-break:break-all}
+.reg-credential-value{font-size:15px;font-weight:700;color:var(--testo);font-family:monospace;word-break:break-all}
 .filter-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .pill{padding:5px 14px;border-radius:20px;border:1.5px solid var(--bordo);font-size:13px;cursor:pointer;background:#fff;color:var(--testo);transition:all .2s;white-space:nowrap}
 .pill.sel{background:var(--blu);color:#fff;border-color:var(--blu)}
+.loading{text-align:center;padding:40px;color:var(--testo2);font-size:15px}
+.spinner{width:36px;height:36px;border:3px solid var(--bordo);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
 canvas{display:block;width:100%!important}
 .chart-wrap{position:relative;width:100%;margin:0 auto}
 .legend-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center}
@@ -103,757 +103,744 @@ canvas{display:block;width:100%!important}
 </style>
 </head>
 <body>
-<div id="app"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<div id="app"><div class="loading"><div class="spinner"></div>Caricamento...</div></div>
 <script>
-const CFG={
-  prezzoCarburante:2.5,consumoPer100km:8,
-  tariffe:{
-    AR7:{giornoBase:0,kmInclusi:0,extraOgni:50,extraCosto:0,pieno:true,nome:'AR7'},
-    Scout:{giornoBase:20,kmInclusi:100,extraOgni:50,extraCosto:5,pieno:true,nome:'Altri Scout'},
-    Altro:{giornoBase:30,kmInclusi:100,extraOgni:50,extraCosto:5,pieno:true,nome:'Altro'},
+// ═══════════════════════════════════════════
+//  CONFIGURAZIONE SUPABASE
+//  Sostituisci con le tue credenziali dopo aver rigenerato la chiave
+// ═══════════════════════════════════════════
+const SUPABASE_URL = 'https://nxopqexvmespoghtguus.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3BxZXh2bWVzcG9naHRndXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDcwNzMsImV4cCI6MjA5MjM4MzA3M30.Ky1YUjtd-0w9jZGbv2FRv2Y0OLkJxxGITfK-y-pjZmE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ═══════════════════════════════════════════
+//  STATO GLOBALE
+// ═══════════════════════════════════════════
+const APP = {
+  user: null,        // utente Supabase auth
+  profilo: null,     // riga dalla tabella profili
+  tab: 'nuovo',
+  adminTab: 'panoramica',
+  modal: null,
+  editId: null,
+  logoUrl: '',
+  filterUser: '',
+  filterTariffa: '',
+  alert: null,
+  subview: null,
+  regResult: null,
+  viaggioInCorso: null,
+  viaggi: [],
+  utenti: [],
+  team: [],
+  cfg: {
+    tariffa_scout_giorno: 20, tariffa_scout_km_inclusi: 100,
+    tariffa_scout_extra_ogni: 50, tariffa_scout_extra_costo: 5,
+    tariffa_altro_giorno: 30, tariffa_altro_km_inclusi: 100,
+    tariffa_altro_extra_ogni: 50, tariffa_altro_extra_costo: 5,
+    carburante_consumo: 8, carburante_prezzo: 2.5, logo_url: ''
   }
 };
-const APP={
-  state:{view:'login',subview:null,user:null,tab:'nuovo',adminTab:'panoramica',modal:null,editId:null,logoUrl:null,filterUser:'',filterTariffa:'',alert:null,regResult:null},
-  data:{
-    utenti:[
-      {id:'u1',nome:'Admin Principale',email:'admin@ar7.it',pass:'admin123',ruolo:'admin'},
-      {id:'u2',nome:'Gestore Sistema',email:'gestore@ar7.it',pass:'gestore123',ruolo:'gestore'},
-      {id:'u3',nome:'Marco Rossi',email:'marco@ar7.it',pass:'pass123',ruolo:'utente'},
-      {id:'u4',nome:'Laura Bianchi',email:'laura@ar7.it',pass:'pass123',ruolo:'utente'},
-    ],
-    team:[
-      {id:'t1',nome:'Reparto Esploratori',responsabile:'u3',descrizione:'Ragazzi 12-16 anni'},
-      {id:'t2',nome:'Branco Lupi',responsabile:'u4',descrizione:'Bambini 8-12 anni'},
-    ],
-    viaggi:[
-      {id:'v1',uid:'u3',nome:'Marco',cognome:'Rossi',utilizzo:'Campo estivo Pratomagno',kmI:12450,kmF:12580,ritiro:'2025-06-10T08:00',riconsegna:'2025-06-11T18:30',tariffa:'AR7',pieno:true,approvato:true,ts:1718006400000},
-      {id:'v2',uid:'u4',nome:'Laura',cognome:'Bianchi',utilizzo:'Riunione Zona Arezzo',kmI:12580,kmF:12620,ritiro:'2025-06-12T14:00',riconsegna:'2025-06-12T16:00',tariffa:'Scout',pieno:false,approvato:true,ts:1718179200000},
-      {id:'v3',uid:null,nome:'Ospite',cognome:'Scout',utilizzo:'Uscita domenicale',kmI:12620,kmF:12695,ritiro:'2025-06-15T09:00',riconsegna:'2025-06-15T17:00',tariffa:'Altro',pieno:true,approvato:true,ts:1718438400000},
-      {id:'v4',uid:'u3',nome:'Marco',cognome:'Rossi',utilizzo:'Attività invernale',kmI:12695,kmF:12780,ritiro:'2025-07-02T09:00',riconsegna:'2025-07-02T18:00',tariffa:'AR7',pieno:false,approvato:true,ts:1720908000000},
-      {id:'v5',uid:'u4',nome:'Laura',cognome:'Bianchi',utilizzo:'Campo invernale',kmI:12780,kmF:12950,ritiro:'2025-08-05T08:00',riconsegna:'2025-08-07T18:00',tariffa:'Scout',pieno:true,approvato:true,ts:1722844800000},
-    ]
+
+let chartInstances = {};
+
+// ═══════════════════════════════════════════
+//  SUPABASE — DATI
+// ═══════════════════════════════════════════
+async function loadConfig() {
+  const { data } = await sb.from('config').select('*');
+  if (data) data.forEach(r => { APP.cfg[r.chiave] = isNaN(r.valore) ? r.valore : parseFloat(r.valore); });
+  APP.logoUrl = APP.cfg.logo_url || '';
+}
+
+async function loadViaggi() {
+  const isAdm = isAdmin(APP.profilo);
+  let q = sb.from('viaggi').select('*').order('created_at', { ascending: true });
+  if (!isAdm) q = q.eq('uid', APP.user.id);
+  const { data, error } = await q;
+  if (!error) APP.viaggi = data || [];
+}
+
+async function loadUtenti() {
+  const { data } = await sb.from('profili').select('*').order('nome');
+  APP.utenti = data || [];
+}
+
+async function loadTeam() {
+  const { data } = await sb.from('team').select('*').order('nome');
+  APP.team = data || [];
+}
+
+async function loadAll() {
+  await loadConfig();
+  await loadViaggi();
+  if (isAdmin(APP.profilo)) { await loadUtenti(); await loadTeam(); }
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const val = id => { const el = $(id); return el ? el.value : ''; };
+function uid() { return 'x' + Math.random().toString(36).substr(2, 9); }
+function fmtDate(s) { if (!s) return '-'; const d = new Date(s); return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); }
+function giorni(r, c) { if (!r || !c) return 1; return Math.max(1, Math.ceil((new Date(c) - new Date(r)) / 86400000)); }
+function isAdmin(p) { return p && (p.ruolo === 'admin' || p.ruolo === 'gestore'); }
+function isGestore(p) { return p && p.ruolo === 'gestore'; }
+
+function generaEmail(nome, cognome) {
+  const base = (nome.trim().toLowerCase() + '.' + cognome.trim().toLowerCase()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+  const esistenti = APP.utenti.map(u => u.email || '');
+  const c = base + '@ar7.it'; if (!esistenti.includes(c)) return c;
+  let i = 2; while (esistenti.includes(base + i + '@ar7.it')) i++; return base + i + '@ar7.it';
+}
+
+function calcolaCosto(v) {
+  if (!v.tariffa || !v.approvato) return null;
+  const c = APP.cfg; const km = Math.max(0, (v.km_f || 0) - (v.km_i || 0));
+  const gg = giorni(v.ritiro, v.riconsegna);
+  let base = 0, kmExtra = 0, carburante = 0;
+  if (v.tariffa === 'Scout') {
+    base = c.tariffa_scout_giorno * gg;
+    const extra = Math.max(0, km - c.tariffa_scout_km_inclusi * gg);
+    kmExtra = Math.ceil(extra / c.tariffa_scout_extra_ogni) * c.tariffa_scout_extra_costo;
+  } else if (v.tariffa === 'Altro') {
+    base = c.tariffa_altro_giorno * gg;
+    const extra = Math.max(0, km - c.tariffa_altro_km_inclusi * gg);
+    kmExtra = Math.ceil(extra / c.tariffa_altro_extra_ogni) * c.tariffa_altro_extra_costo;
   }
-};
-
-let chartInstances={};
-
-function save(){try{window.storage&&window.storage.set('ar7_v4',JSON.stringify({data:APP.data,cfg:CFG,logo:APP.state.logoUrl})).catch(()=>{})}catch(e){}}
-function load(){try{window.storage&&window.storage.get('ar7_v4').then(r=>{if(r&&r.value){const d=JSON.parse(r.value);if(d.data)APP.data=d.data;if(d.cfg){Object.assign(CFG.tariffe,d.cfg.tariffe||{});if(d.cfg.prezzoCarburante)CFG.prezzoCarburante=d.cfg.prezzoCarburante;if(d.cfg.consumoPer100km)CFG.consumoPer100km=d.cfg.consumoPer100km;}if(d.logo)APP.state.logoUrl=d.logo;}render()}).catch(()=>{})}catch(e){}}
-
-const $=id=>document.getElementById(id);
-const val=id=>{const el=$(id);return el?el.value:''};
-function uid(){return 'x'+Math.random().toString(36).substr(2,9)}
-function fmtDate(s){if(!s)return '-';const d=new Date(s);return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}
-function giorni(ritiro,riconsegna){if(!ritiro||!riconsegna)return 1;const ms=new Date(riconsegna)-new Date(ritiro);return Math.max(1,Math.ceil(ms/(1000*60*60*24)))}
-function isAdmin(u){return u&&(u.ruolo==='admin'||u.ruolo==='gestore')}
-function isGestore(u){return u&&u.ruolo==='gestore'}
-
-function generaEmail(nome,cognome,escludiId){
-  const base=(nome.trim().toLowerCase()+'.'+cognome.trim().toLowerCase()).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'.');
-  const esistenti=APP.data.utenti.filter(u=>!escludiId||u.id!==escludiId).map(u=>u.email.toLowerCase());
-  const c=base+'@ar7.it';if(!esistenti.includes(c))return c;
-  let i=2;while(esistenti.includes(base+i+'@ar7.it'))i++;return base+i+'@ar7.it';
+  if (!v.pieno) carburante = (km / 100) * c.carburante_consumo * c.carburante_prezzo;
+  return { base, kmExtra, carburante, totale: base + kmExtra + carburante, km, gg };
 }
-function calcolaCostoDettaglio(v){
-  if(!v.tariffa||!v.approvato)return null;
-  const t=CFG.tariffe[v.tariffa];if(!t)return null;
-  const km=Math.max(0,(v.kmF||0)-(v.kmI||0));
-  const gg=giorni(v.ritiro,v.riconsegna);
-  const base=t.giornoBase*gg;
-  let kmExtra=0;
-  if(t.kmInclusi>0){const extra=Math.max(0,km-t.kmInclusi*gg);kmExtra=Math.ceil(extra/t.extraOgni)*t.extraCosto;}
-  let carburante=0;
-  if(!v.pieno){carburante=(km/100)*CFG.consumoPer100km*CFG.prezzoCarburante;}
-  return{base,kmExtra,carburante,totale:base+kmExtra+carburante,km,gg};
+
+function showAlert(msg, tipo = 'ok', dur = 3500) {
+  APP.alert = { msg, tipo }; render();
+  setTimeout(() => { APP.alert = null; render(); }, dur);
 }
-function showAlert(msg,tipo='ok',dur=3000){APP.state.alert={msg,tipo};render();setTimeout(()=>{APP.state.alert=null;render()},dur)}
-function tagTariffa(t){
-  if(!t)return `<span class="tag tag-anon">N/D</span>`;
-  if(t==='AR7')return `<span class="tag tag-ar7">AR7</span>`;
-  if(t==='Scout')return `<span class="tag tag-scout">Altri Scout</span>`;
+
+function tagTariffa(t) {
+  if (!t) return `<span class="tag tag-anon">N/D</span>`;
+  if (t === 'AR7') return `<span class="tag tag-ar7">AR7</span>`;
+  if (t === 'Scout') return `<span class="tag tag-scout">Altri Scout</span>`;
   return `<span class="tag tag-altro">Altro</span>`;
 }
-function destroyCharts(){Object.values(chartInstances).forEach(c=>{try{c.destroy()}catch(e){}});chartInstances={};}
 
-/* ========== RENDER ========== */
-function render(){
+function destroyCharts() { Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch (e) { } }); chartInstances = {}; }
+
+// ═══════════════════════════════════════════
+//  RENDER PRINCIPALE
+// ═══════════════════════════════════════════
+function render() {
   destroyCharts();
-  const app=$('app');if(!app)return;
-  if(!APP.state.user){
-    if(APP.state.subview==='registrati'){app.innerHTML=renderRegistrati();bindRegistrati();return;}
-    app.innerHTML=renderLogin();bindLogin();return;
+  const app = $('app'); if (!app) return;
+  if (!APP.user) {
+    if (APP.subview === 'registrati') { app.innerHTML = renderRegistrati(); bindRegistrati(); return; }
+    app.innerHTML = renderLogin(); bindLogin(); return;
   }
-  app.innerHTML=`<div style="display:flex;flex-direction:column;min-height:100vh">${renderTopbar()}<div class="content" id="main-content">${renderAlert()}${renderMain()}</div>${renderBottomNav()}</div>${APP.state.modal?renderModal():''}`;
+  app.innerHTML = `<div style="display:flex;flex-direction:column;min-height:100vh">${renderTopbar()}<div class="content" id="main-content">${renderAlert()}${renderMain()}</div>${renderBottomNav()}</div>${APP.modal ? renderModal() : ''}`;
   bindMain();
-  if(APP.state.tab==='statistiche') setTimeout(initCharts,50);
+  if (APP.tab === 'statistiche') setTimeout(initCharts, 80);
 }
 
-function renderAlert(){if(!APP.state.alert)return '';return `<div class="alert alert-${APP.state.alert.tipo==='ok'?'ok':'err'}">${APP.state.alert.msg}</div>`;}
+function renderAlert() { if (!APP.alert) return ''; return `<div class="alert alert-${APP.alert.tipo === 'ok' ? 'ok' : 'err'}">${APP.alert.msg}</div>`; }
 
-function renderTopbar(){
-  const u=APP.state.user;
-  const lc=APP.state.logoUrl?`<img src="${APP.state.logoUrl}" alt="logo">`:`<div class="logo-placeholder">AR7</div>`;
-  return `<div class="topbar"><div style="display:flex;align-items:center;gap:8px;flex:1"><div class="logo-circle">${lc}</div><div><div style="font-size:15px;font-weight:700">Furgone Scout AR7</div><div style="font-size:11px;opacity:.8">Arezzo 7</div></div></div><span class="badge-role">${u.ruolo}</span><button onclick="doLogout()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px 4px 4px 10px">⏏</button></div>`;
+function renderTopbar() {
+  const p = APP.profilo;
+  const lc = APP.logoUrl ? `<img src="${APP.logoUrl}" alt="logo">` : `<div class="logo-placeholder">AR7</div>`;
+  return `<div class="topbar"><div style="display:flex;align-items:center;gap:8px;flex:1"><div class="logo-circle">${lc}</div><div><div style="font-size:15px;font-weight:700">Furgone Scout AR7</div><div style="font-size:11px;opacity:.8">Arezzo 7</div></div></div><span class="badge-role">${p ? p.ruolo : ''}</span><button onclick="doLogout()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px 4px 4px 10px">⏏</button></div>`;
 }
 
-function renderBottomNav(){
-  const u=APP.state.user;
-  let tabs;
-  if(isGestore(u)){
-    tabs=[{id:'nuovo',icon:'➕',lbl:'Nuovo viaggio'},{id:'storico',icon:'📋',lbl:'Tutti i viaggi'},{id:'admin',icon:'📊',lbl:'Riepilogo'},{id:'statistiche',icon:'📈',lbl:'Statistiche'},{id:'impostazioni',icon:'⚙️',lbl:'Gestione'}];
-  } else if(isAdmin(u)){
-    tabs=[{id:'nuovo',icon:'➕',lbl:'Nuovo viaggio'},{id:'storico',icon:'📋',lbl:'Tutti i viaggi'},{id:'admin',icon:'📊',lbl:'Riepilogo'},{id:'statistiche',icon:'📈',lbl:'Statistiche'},{id:'impostazioni',icon:'⚙️',lbl:'Impostazioni'}];
-  } else {
-    tabs=[{id:'nuovo',icon:'➕',lbl:'Nuovo viaggio'},{id:'storico',icon:'📋',lbl:'I miei viaggi'},{id:'impostazioni',icon:'⚙️',lbl:'Impostazioni'}];
-  }
-  return `<div class="bottom-nav">${tabs.map(t=>`<button class="nav-item ${APP.state.tab===t.id?'active':''}" onclick="setTab('${t.id}')"><span class="nav-icon">${t.icon}</span>${t.lbl}</button>`).join('')}</div>`;
+function renderBottomNav() {
+  const p = APP.profilo; let tabs;
+  if (isGestore(p)) tabs = [{ id: 'nuovo', icon: '➕', lbl: 'Nuovo viaggio' }, { id: 'storico', icon: '📋', lbl: 'Tutti i viaggi' }, { id: 'admin', icon: '📊', lbl: 'Riepilogo' }, { id: 'statistiche', icon: '📈', lbl: 'Statistiche' }, { id: 'impostazioni', icon: '⚙️', lbl: 'Gestione' }];
+  else if (isAdmin(p)) tabs = [{ id: 'nuovo', icon: '➕', lbl: 'Nuovo viaggio' }, { id: 'storico', icon: '📋', lbl: 'Tutti i viaggi' }, { id: 'admin', icon: '📊', lbl: 'Riepilogo' }, { id: 'statistiche', icon: '📈', lbl: 'Statistiche' }, { id: 'impostazioni', icon: '⚙️', lbl: 'Impostazioni' }];
+  else tabs = [{ id: 'nuovo', icon: '➕', lbl: 'Nuovo viaggio' }, { id: 'storico', icon: '📋', lbl: 'I miei viaggi' }, { id: 'impostazioni', icon: '⚙️', lbl: 'Impostazioni' }];
+  return `<div class="bottom-nav">${tabs.map(t => `<button class="nav-item ${APP.tab === t.id ? 'active' : ''}" onclick="setTab('${t.id}')"><span class="nav-icon">${t.icon}</span>${t.lbl}</button>`).join('')}</div>`;
 }
 
-function renderMain(){
-  switch(APP.state.tab){
-    case 'nuovo':return renderNuovo();
-    case 'storico':return renderStorico();
-    case 'admin':return renderAdmin();
-    case 'statistiche':return renderStatistiche();
-    case 'impostazioni':return renderImpostazioni();
-    default:return renderNuovo();
+function renderMain() {
+  switch (APP.tab) {
+    case 'nuovo': return renderNuovo();
+    case 'storico': return renderStorico();
+    case 'admin': return renderAdmin();
+    case 'statistiche': return renderStatistiche();
+    case 'impostazioni': return renderImpostazioni();
+    default: return renderNuovo();
   }
 }
 
-/* ---- NUOVO ---- */
-function renderNuovo(){
-  const u=APP.state.user;
-  const pn=u&&!u.anonimo?u.nome.split(' ')[0]:'';
-  const pc=u&&!u.anonimo&&u.nome.includes(' ')?u.nome.split(' ').slice(1).join(' '):'';
-  const vp=APP.state.viaggioInCorso;
+// ═══════════════════════════════════════════
+//  NUOVO VIAGGIO
+// ═══════════════════════════════════════════
+function renderNuovo() {
+  const p = APP.profilo;
+  const pn = p ? p.nome.split(' ')[0] : '';
+  const pc = p && p.nome.includes(' ') ? p.nome.split(' ').slice(1).join(' ') : '';
+  const vp = APP.viaggioInCorso;
   return `
   <div class="section-title">Nuovo viaggio</div>
   <div class="sub-title">Registra l'utilizzo del furgone in due fasi</div>
-
-  <!-- FASE 1 -->
-  <div class="card" style="${vp?'opacity:.55;pointer-events:none':''}">
-    <div class="card-title" style="display:flex;align-items:center;gap:8px">
-      <span style="background:var(--blu);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">1</span>
-      Inizio viaggio
-    </div>
+  <div class="card" style="${vp ? 'opacity:.55;pointer-events:none' : ''}">
+    <div class="card-title"><span style="background:var(--blu);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">1</span>Inizio viaggio</div>
     <div class="row2">
-      <div class="field"><label>Nome</label><input id="f-nome" value="${vp?vp.nome:pn}"/></div>
-      <div class="field"><label>Cognome</label><input id="f-cognome" value="${vp?vp.cognome:pc}"/></div>
+      <div class="field"><label>Nome</label><input id="f-nome" value="${vp ? vp.nome : pn}"/></div>
+      <div class="field"><label>Cognome</label><input id="f-cognome" value="${vp ? vp.cognome : pc}"/></div>
     </div>
-    <div class="field" style="margin-top:10px"><label>Utilizzo / Destinazione</label><input id="f-utilizzo" value="${vp?vp.utilizzo:''}" placeholder="es. Riunione reparto..."/></div>
+    <div class="field" style="margin-top:10px"><label>Utilizzo / Destinazione</label><input id="f-utilizzo" value="${vp ? vp.utilizzo : ''}" placeholder="es. Riunione reparto..."/></div>
     <div class="row2" style="margin-top:10px">
-      <div class="field"><label>Km iniziali</label><input id="f-kmi" type="number" value="${vp?vp.kmI:''}"/></div>
-      <div class="field"><label>Data e ora ritiro</label><input id="f-ritiro" type="datetime-local" value="${vp?vp.ritiro:''}"/></div>
+      <div class="field"><label>Km iniziali</label><input id="f-kmi" type="number" value="${vp ? vp.km_i : ''}"/></div>
+      <div class="field"><label>Data e ora ritiro</label><input id="f-ritiro" type="datetime-local" value="${vp ? vp.ritiro : ''}"/></div>
     </div>
-    ${!vp?`<button class="btn btn-primary" style="margin-top:14px" onclick="iniziaViaggio()">🚐 Inizia viaggio</button>`:`<div style="margin-top:12px;background:#eafbe6;border-radius:9px;padding:10px 12px;font-size:13px;color:var(--verde);font-weight:600">✓ Viaggio in corso — completa la fase 2</div>`}
+    ${!vp ? `<button class="btn btn-primary" style="margin-top:14px" onclick="iniziaViaggio()">🚐 Inizia viaggio</button>` : `<div style="margin-top:12px;background:#eafbe6;border-radius:9px;padding:10px 12px;font-size:13px;color:var(--verde);font-weight:600">✓ Viaggio in corso — completa la fase 2</div>`}
   </div>
-
-  <!-- FASE 2 -->
-  <div class="card" style="${!vp?'opacity:.45;pointer-events:none':''}">
-    <div class="card-title" style="display:flex;align-items:center;gap:8px">
-      <span style="background:${vp?'var(--verde)':'#bbb'};color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">2</span>
-      Fine viaggio
-    </div>
-    ${vp?`<div style="background:var(--grigio-bg);border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:12px;color:var(--testo2)">
-      <b>${vp.nome} ${vp.cognome}</b> · ${vp.utilizzo}<br>
-      Km partenza: <b>${vp.kmI}</b> · Ritiro: <b>${fmtDate(vp.ritiro)}</b>
-    </div>`:''}
+  <div class="card" style="${!vp ? 'opacity:.45;pointer-events:none' : ''}">
+    <div class="card-title"><span style="background:${vp ? 'var(--verde)' : '#bbb'};color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">2</span>Fine viaggio</div>
+    ${vp ? `<div style="background:var(--grigio-bg);border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:12px;color:var(--testo2)"><b>${vp.nome} ${vp.cognome}</b> · ${vp.utilizzo}<br>Km partenza: <b>${vp.km_i}</b> · Ritiro: <b>${fmtDate(vp.ritiro)}</b></div>` : ''}
     <div class="row2">
-      <div class="field"><label>Km finali</label><input id="f-kmf" type="number" ${vp?'':'disabled'}/></div>
-      <div class="field"><label>Data e ora riconsegna</label><input id="f-riconsegna" type="datetime-local" ${vp?'':'disabled'}/></div>
+      <div class="field"><label>Km finali</label><input id="f-kmf" type="number" ${vp ? '' : 'disabled'}/></div>
+      <div class="field"><label>Data e ora riconsegna</label><input id="f-riconsegna" type="datetime-local" ${vp ? '' : 'disabled'}/></div>
     </div>
     <div class="field" style="margin-top:10px">
       <label>Pieno effettuato</label>
-      <select id="f-pieno" ${vp?'':'disabled'}>
+      <select id="f-pieno" ${vp ? '' : 'disabled'}>
         <option value="">— Seleziona —</option>
         <option value="si">Sì</option>
         <option value="no">No</option>
       </select>
     </div>
     <div id="km-preview" style="margin-top:8px;font-size:13px;color:var(--testo2)"></div>
-    ${vp?`<div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn btn-success" onclick="completaViaggio()">✓ Completa viaggio</button>
-      <button class="btn btn-danger btn-sm" style="width:auto;padding:13px 16px" onclick="annullaViaggio()" title="Annulla viaggio in corso">✕</button>
-    </div>`:`<button class="btn btn-primary" style="margin-top:14px;opacity:.5" disabled>✓ Completa viaggio</button>`}
+    ${vp ? `<div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-success" onclick="completaViaggio()">✓ Completa viaggio</button><button class="btn btn-danger btn-sm" style="width:auto;padding:13px 16px" onclick="annullaViaggio()">✕</button></div>` : `<button class="btn btn-primary" style="margin-top:14px;opacity:.5" disabled>✓ Completa viaggio</button>`}
   </div>`;
 }
 
-/* ---- STORICO ---- */
-function renderStorico(){
-  const u=APP.state.user;const tutti=isAdmin(u);
-  let list=tutti?APP.data.viaggi:APP.data.viaggi.filter(v=>v.uid===u.id);
-  const f=APP.state.filterTariffa,fu=APP.state.filterUser||'';
-  if(f)list=list.filter(v=>f==='ND'?!v.tariffa:v.tariffa===f);
-  if(fu&&tutti)list=list.filter(v=>(v.nome+' '+v.cognome).toLowerCase().includes(fu.toLowerCase()));
+// ═══════════════════════════════════════════
+//  STORICO
+// ═══════════════════════════════════════════
+function renderStorico() {
+  const p = APP.profilo; const tutti = isAdmin(p);
+  let list = [...APP.viaggi];
+  const f = APP.filterTariffa, fu = APP.filterUser || '';
+  if (f) list = list.filter(v => f === 'ND' ? !v.tariffa : v.tariffa === f);
+  if (fu && tutti) list = list.filter(v => (v.nome + ' ' + v.cognome).toLowerCase().includes(fu.toLowerCase()));
+  list = list.slice().reverse();
   return `
-  <div class="section-title">${tutti?'Tutti i viaggi':'I miei viaggi'}</div>
+  <div class="section-title">${tutti ? 'Tutti i viaggi' : 'I miei viaggi'}</div>
   <div class="sub-title">${list.length} viaggio/i</div>
-  ${tutti?`<input id="filter-user" placeholder="🔍 Cerca per nome..." value="${fu}" oninput="APP.state.filterUser=this.value;renderInner()" style="margin-bottom:8px"/>`:''}
-  <div class="filter-row">${['','AR7','Scout','Altro','ND'].map(k=>`<button class="pill ${f===k?'sel':''}" onclick="APP.state.filterTariffa='${k}';renderInner()">${k===''?'Tutti':k==='ND'?'N/D':k==='Scout'?'Altri Scout':k}</button>`).join('')}</div>
-  <div class="card">${list.length===0?`<div class="empty-state"><div class="empty-icon">🚐</div><p>Nessun viaggio</p></div>`:list.slice().reverse().map(v=>renderEntryItem(v,isAdmin(u))).join('')}</div>`;
+  ${tutti ? `<input id="filter-user" placeholder="🔍 Cerca per nome..." value="${fu}" oninput="APP.filterUser=this.value;renderInner()" style="margin-bottom:8px"/>` : ''}
+  <div class="filter-row">${['', 'AR7', 'Scout', 'Altro', 'ND'].map(k => `<button class="pill ${f === k ? 'sel' : ''}" onclick="APP.filterTariffa='${k}';renderInner()">${k === '' ? 'Tutti' : k === 'ND' ? 'N/D' : k === 'Scout' ? 'Altri Scout' : k}</button>`).join('')}</div>
+  <div class="card">${list.length === 0 ? `<div class="empty-state"><div class="empty-icon">🚐</div><p>Nessun viaggio</p></div>` : list.map(v => renderEntryItem(v, tutti)).join('')}</div>`;
 }
 
-function renderEntryItem(v,adminView){
-  const km=Math.max(0,(v.kmF||0)-(v.kmI||0));
-  const det=calcolaCostoDettaglio(v);
+function renderEntryItem(v, adminView) {
+  const km = Math.max(0, (v.km_f || 0) - (v.km_i || 0));
+  const det = calcolaCosto(v);
+  const c = APP.cfg;
   return `<div class="entry-item">
-    <div class="entry-head"><span class="entry-name">${v.nome} ${v.cognome}</span>${det?`<span class="costo-badge">€${det.totale.toFixed(2)}</span>`:`<span class="tag tag-anon">In attesa</span>`}</div>
+    <div class="entry-head"><span class="entry-name">${v.nome} ${v.cognome}</span>${det ? `<span class="costo-badge">€${det.totale.toFixed(2)}</span>` : `<span class="tag tag-anon">In attesa</span>`}</div>
     <div style="font-size:13px;color:var(--testo2)">📍 ${v.utilizzo}</div>
-    <div style="font-size:13px;color:var(--testo2)">🛣 ${km} km (${v.kmI}→${v.kmF})</div>
+    <div style="font-size:13px;color:var(--testo2)">🛣 ${km} km (${v.km_i}→${v.km_f || '?'})</div>
     <div style="font-size:12px;color:var(--testo2)">📅 ${fmtDate(v.ritiro)} → ${fmtDate(v.riconsegna)}</div>
     <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       ${tagTariffa(v.tariffa)}
-      ${v.pieno?`<span class="tag" style="background:#fff3e0;color:#e65100">⛽ Pieno</span>`:`<span class="tag" style="background:#fde8e8;color:#c0392b">⛽ No pieno</span>`}
-      ${adminView?`<button class="btn btn-outline btn-sm" onclick="openEditViaggio('${v.id}')">✏️ Modifica</button><button class="btn btn-danger btn-sm" onclick="deleteViaggio('${v.id}')">🗑</button>`:''}
+      ${v.pieno ? `<span class="tag" style="background:#fff3e0;color:#e65100">⛽ Pieno</span>` : `<span class="tag" style="background:#fde8e8;color:#c0392b">⛽ No pieno</span>`}
+      ${adminView ? `<button class="btn btn-outline btn-sm" onclick="openEditViaggio('${v.id}')">✏️ Modifica</button><button class="btn btn-danger btn-sm" onclick="deleteViaggio('${v.id}')">🗑</button>` : ''}
     </div>
-    ${det&&!adminView?renderCostoBox(det,v.tariffa):''}
-    ${det&&adminView?`<div style="font-size:12px;color:var(--testo2);margin-top:4px">Base €${det.base.toFixed(2)} + Extra €${det.kmExtra.toFixed(2)} + Carb. €${det.carburante.toFixed(2)}</div>`:''}
-    ${adminView&&!v.tariffa?`<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <label style="font-size:12px;color:var(--testo2);white-space:nowrap;margin:0">Tariffa:</label>
-      <select style="flex:1;padding:6px 10px;font-size:13px;border-radius:8px;border:1px solid var(--bordo);color:#000;background:#fff" onchange="setTariffaRapida('${v.id}',this.value)">
-        <option value="">— Seleziona —</option>
-        <option value="AR7">AR7 (gratuita)</option>
-        <option value="Scout">Altri Scout (€${CFG.tariffe.Scout.giornoBase}/g)</option>
-        <option value="Altro">Altro (€${CFG.tariffe.Altro.giornoBase}/g)</option>
-      </select>
-    </div>`:''}
+    ${det && !adminView ? renderCostoBox(det, v.tariffa) : ''}
+    ${det && adminView ? `<div style="font-size:12px;color:var(--testo2);margin-top:4px">Base €${det.base.toFixed(2)} + Extra €${det.kmExtra.toFixed(2)} + Carb. €${det.carburante.toFixed(2)}</div>` : ''}
+    ${adminView && !v.tariffa ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px"><label style="font-size:12px;color:var(--testo2);white-space:nowrap;margin:0">Tariffa:</label><select style="flex:1;padding:6px 10px;font-size:13px;border-radius:8px;border:1px solid var(--bordo);color:#000;background:#fff" onchange="setTariffaRapida('${v.id}',this.value)"><option value="">— Seleziona —</option><option value="AR7">AR7 (gratuita)</option><option value="Scout">Altri Scout (€${c.tariffa_scout_giorno}/g)</option><option value="Altro">Altro (€${c.tariffa_altro_giorno}/g)</option></select></div>` : ''}
   </div>`;
 }
-function renderCostoBox(det,tariffa){
-  const t=CFG.tariffe[tariffa];if(!t)return '';
+
+function renderCostoBox(det, tariffa) {
+  const c = APP.cfg; const t = tariffa === 'Scout' ? { base: c.tariffa_scout_giorno } : tariffa === 'Altro' ? { base: c.tariffa_altro_giorno } : { base: 0 };
   return `<div class="costo-box">
-    ${det.base>0?`<div class="costo-row"><span>Base (${det.gg} g × €${t.giornoBase})</span><span>€${det.base.toFixed(2)}</span></div>`:''}
-    ${det.kmExtra>0?`<div class="costo-row"><span>Km extra</span><span>€${det.kmExtra.toFixed(2)}</span></div>`:''}
-    ${det.carburante>0?`<div class="costo-row"><span>⛽ Carburante stimato</span><span>€${det.carburante.toFixed(2)}</span></div>`:''}
+    ${det.base > 0 ? `<div class="costo-row"><span>Base (${det.gg} g × €${t.base})</span><span>€${det.base.toFixed(2)}</span></div>` : ''}
+    ${det.kmExtra > 0 ? `<div class="costo-row"><span>Km extra</span><span>€${det.kmExtra.toFixed(2)}</span></div>` : ''}
+    ${det.carburante > 0 ? `<div class="costo-row"><span>⛽ Carburante stimato</span><span>€${det.carburante.toFixed(2)}</span></div>` : ''}
     <div class="costo-total"><span>Totale</span><span>€${det.totale.toFixed(2)}</span></div>
   </div>`;
 }
 
-/* ---- ADMIN ---- */
-function renderAdmin(){
-  switch(APP.state.adminTab){
-    case 'panoramica':return renderAdminPanoramica();
-    case 'utenti':return renderAdminUtenti();
-    case 'team':return renderAdminTeam();
-    default:return renderAdminPanoramica();
+// ═══════════════════════════════════════════
+//  ADMIN
+// ═══════════════════════════════════════════
+function renderAdmin() {
+  switch (APP.adminTab) {
+    case 'panoramica': return renderAdminPanoramica();
+    case 'utenti': return renderAdminUtenti();
+    case 'team': return renderAdminTeam();
+    default: return renderAdminPanoramica();
   }
 }
-function renderAdminTabs(){
-  return `<div class="admin-tab-row">${[{id:'panoramica',lbl:'📊 Panoramica'},{id:'utenti',lbl:'👤 Utenti'},{id:'team',lbl:'🏕 Team'}].map(t=>`<button class="admin-tab ${APP.state.adminTab===t.id?'active':''}" onclick="setAdminTab('${t.id}')">${t.lbl}</button>`).join('')}</div>`;
+function renderAdminTabs() {
+  return `<div class="admin-tab-row">${[{ id: 'panoramica', lbl: '📊 Panoramica' }, { id: 'utenti', lbl: '👤 Utenti' }, { id: 'team', lbl: '🏕 Team' }].map(t => `<button class="admin-tab ${APP.adminTab === t.id ? 'active' : ''}" onclick="setAdminTab('${t.id}')">${t.lbl}</button>`).join('')}</div>`;
 }
-
-function renderAdminPanoramica(){
-  const viaggi=APP.data.viaggi;
-  const totKm=viaggi.reduce((a,v)=>a+Math.max(0,(v.kmF||0)-(v.kmI||0)),0);
-  const n=new Date();
-  const kmMese=viaggi.filter(v=>{const d=new Date(v.ts);return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear()}).reduce((a,v)=>a+Math.max(0,(v.kmF||0)-(v.kmI||0)),0);
-  const incasso=viaggi.reduce((a,v)=>{const d=calcolaCostoDettaglio(v);return a+(d?d.totale:0)},0);
-  // km attuali = kmF dell'ultimo viaggio
-  const sortedV=viaggi.filter(v=>v.kmF).sort((a,b)=>a.kmF-b.kmF);
-  const kmAttuali=sortedV.length?sortedV[sortedV.length-1].kmF:0;
-  // media mensile
-  let kmMedioMensile=0;
-  if(viaggi.length>0){
-    const mesiSet=new Set(viaggi.map(v=>{const d=new Date(v.ts);return d.getFullYear()+'-'+d.getMonth()}));
-    kmMedioMensile=mesiSet.size>0?Math.round(totKm/mesiSet.size):totKm;
-  }
+function renderAdminPanoramica() {
+  const viaggi = APP.viaggi;
+  const totKm = viaggi.reduce((a, v) => a + Math.max(0, (v.km_f || 0) - (v.km_i || 0)), 0);
+  const n = new Date();
+  const kmMese = viaggi.filter(v => { const d = new Date(v.created_at); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).reduce((a, v) => a + Math.max(0, (v.km_f || 0) - (v.km_i || 0)), 0);
+  const incasso = viaggi.reduce((a, v) => { const d = calcolaCosto(v); return a + (d ? d.totale : 0); }, 0);
+  const kmAttuali = viaggi.filter(v => v.km_f).reduce((max, v) => Math.max(max, v.km_f), 0);
+  const mesiSet = new Set(viaggi.map(v => { const d = new Date(v.created_at); return d.getFullYear() + '-' + d.getMonth(); }));
+  const kmMedio = mesiSet.size > 0 ? Math.round(totKm / mesiSet.size) : totKm;
   return `${renderAdminTabs()}
   <div class="stat-row">
-    <div class="stat-card"><div class="stat-val">${totKm.toLocaleString('it-IT')}</div><div class="stat-lbl">Km totali percorsi</div></div>
-    <div class="stat-card"><div class="stat-val">${viaggi.length}</div><div class="stat-lbl">Utilizzi totali</div></div>
+    <div class="stat-card"><div class="stat-val">${totKm.toLocaleString('it-IT')}</div><div class="stat-lbl">Km totali</div></div>
+    <div class="stat-card"><div class="stat-val">${viaggi.length}</div><div class="stat-lbl">Utilizzi</div></div>
     <div class="stat-card"><div class="stat-val">${kmMese.toLocaleString('it-IT')}</div><div class="stat-lbl">Km questo mese</div></div>
     <div class="stat-card"><div class="stat-val" style="color:var(--verde)">€${incasso.toFixed(2)}</div><div class="stat-lbl">Incasso totale</div></div>
     <div class="stat-card"><div class="stat-val" style="color:#e67e22">${kmAttuali.toLocaleString('it-IT')}</div><div class="stat-lbl">Km attuali</div></div>
-    <div class="stat-card"><div class="stat-val">${kmMedioMensile.toLocaleString('it-IT')}</div><div class="stat-lbl">Km medi mensili</div></div>
+    <div class="stat-card"><div class="stat-val">${kmMedio.toLocaleString('it-IT')}</div><div class="stat-lbl">Km medi mensili</div></div>
   </div>
   <div class="card" style="margin-top:4px">
     <div class="card-title">Ultimi 5 viaggi</div>
-    ${APP.data.viaggi.slice(-5).reverse().map(v=>`<div class="entry-item">
-      <div class="entry-head"><span class="entry-name">${v.nome} ${v.cognome}</span>${tagTariffa(v.tariffa)}</div>
-      <div style="font-size:13px;color:var(--testo2)">🛣 ${Math.max(0,(v.kmF||0)-(v.kmI||0))} km — ${v.utilizzo}</div>
-    </div>`).join('')}
+    ${[...APP.viaggi].reverse().slice(0, 5).map(v => `<div class="entry-item"><div class="entry-head"><span class="entry-name">${v.nome} ${v.cognome}</span>${tagTariffa(v.tariffa)}</div><div style="font-size:13px;color:var(--testo2)">🛣 ${Math.max(0, (v.km_f || 0) - (v.km_i || 0))} km — ${v.utilizzo}</div></div>`).join('')}
   </div>`;
 }
-
-function renderAdminUtenti(){
-  const gestore=isGestore(APP.state.user);
+function renderAdminUtenti() {
+  const gestore = isGestore(APP.profilo);
   return `${renderAdminTabs()}
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div class="section-title" style="margin:0">Utenti (${APP.data.utenti.length})</div>
-    ${gestore?`<button class="btn btn-success btn-sm" onclick="openAddUtente()">+ Aggiungi</button>`:''}
+    <div class="section-title" style="margin:0">Utenti (${APP.utenti.length})</div>
+    ${gestore ? `<button class="btn btn-success btn-sm" onclick="openAddUtente()">+ Aggiungi</button>` : ''}
   </div>
-  <div class="card">${APP.data.utenti.map(u=>`<div class="user-chip">
-    <div class="user-avatar">${u.nome.substr(0,2).toUpperCase()}</div>
-    <div class="user-info"><div class="user-name">${u.nome}</div><div class="user-role">${u.email} · <span class="badge-role" style="font-size:9px">${u.ruolo}</span></div></div>
-    ${gestore?`<div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm" onclick="openEditUtente('${u.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteUtente('${u.id}')">🗑</button></div>`:''}
+  <div class="card">${APP.utenti.map(u => `<div class="user-chip">
+    <div class="user-avatar">${u.nome.substr(0, 2).toUpperCase()}</div>
+    <div class="user-info"><div class="user-name">${u.nome}</div><div class="user-role">${u.email || ''} · <span class="badge-role" style="font-size:9px">${u.ruolo}</span></div></div>
+    ${gestore ? `<div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm" onclick="openEditUtente('${u.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteUtente('${u.id}')">🗑</button></div>` : ''}
   </div>`).join('')}</div>`;
 }
-
-function renderAdminTeam(){
-  const gestore=isGestore(APP.state.user);
+function renderAdminTeam() {
+  const gestore = isGestore(APP.profilo);
   return `${renderAdminTabs()}
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div class="section-title" style="margin:0">Team (${APP.data.team.length})</div>
-    ${gestore?`<button class="btn btn-success btn-sm" onclick="openAddTeam()">+ Aggiungi</button>`:''}
+    <div class="section-title" style="margin:0">Team (${APP.team.length})</div>
+    ${gestore ? `<button class="btn btn-success btn-sm" onclick="openAddTeam()">+ Aggiungi</button>` : ''}
   </div>
-  ${APP.data.team.length===0?`<div class="empty-state"><div class="empty-icon">🏕</div><p>Nessun team</p></div>`:
-  APP.data.team.map(t=>{const resp=APP.data.utenti.find(u=>u.id===t.responsabile);return `<div class="card" style="margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div>
-        <div style="font-weight:700;font-size:16px;margin-bottom:4px">🏕 ${t.nome}</div>
-        <div style="font-size:13px;color:var(--testo2)">Responsabile: <b>${resp?resp.nome:'—'}</b></div>
-        ${t.descrizione?`<div style="font-size:13px;color:var(--testo2);margin-top:2px">${t.descrizione}</div>`:''}
-      </div>
-      ${gestore?`<div style="display:flex;gap:6px;flex-shrink:0"><button class="btn btn-outline btn-sm" onclick="openEditTeam('${t.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></div>`:''}
-    </div>
-  </div>`}).join('')}`;
+  ${APP.team.length === 0 ? `<div class="empty-state"><div class="empty-icon">🏕</div><p>Nessun team</p></div>` :
+    APP.team.map(t => { const resp = APP.utenti.find(u => u.id === t.responsabile_id); return `<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700;font-size:16px;margin-bottom:4px">🏕 ${t.nome}</div><div style="font-size:13px;color:var(--testo2)">Responsabile: <b>${resp ? resp.nome : '—'}</b></div>${t.descrizione ? `<div style="font-size:13px;color:var(--testo2);margin-top:2px">${t.descrizione}</div>` : ''}</div>${gestore ? `<div style="display:flex;gap:6px;flex-shrink:0"><button class="btn btn-outline btn-sm" onclick="openEditTeam('${t.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></div>` : ''}</div></div>`; }).join('')}`;
 }
 
-/* ---- STATISTICHE ---- */
-function renderStatistiche(){
+// ═══════════════════════════════════════════
+//  STATISTICHE
+// ═══════════════════════════════════════════
+function renderStatistiche() {
   return `
   <div class="section-title">Statistiche</div>
   <div class="sub-title">Analisi utilizzo furgone</div>
-  <div class="card">
-    <div class="card-title">Distribuzione tariffe</div>
-    <div class="chart-wrap" style="height:220px;display:flex;align-items:center;justify-content:center"><canvas id="chart-tariffe" style="max-width:220px;max-height:220px"></canvas></div>
-    <div class="legend-row" id="legend-tariffe"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Pieno effettuato</div>
-    <div class="chart-wrap" style="height:220px;display:flex;align-items:center;justify-content:center"><canvas id="chart-pieno" style="max-width:220px;max-height:220px"></canvas></div>
-    <div class="legend-row" id="legend-pieno"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Km nel tempo</div>
-    <div class="chart-wrap" style="height:240px"><canvas id="chart-km"></canvas></div>
-  </div>`;
+  <div class="card"><div class="card-title">Distribuzione tariffe</div><div class="chart-wrap" style="height:220px;display:flex;align-items:center;justify-content:center"><canvas id="chart-tariffe" style="max-width:220px;max-height:220px"></canvas></div><div class="legend-row" id="legend-tariffe"></div></div>
+  <div class="card"><div class="card-title">Pieno effettuato</div><div class="chart-wrap" style="height:220px;display:flex;align-items:center;justify-content:center"><canvas id="chart-pieno" style="max-width:220px;max-height:220px"></canvas></div><div class="legend-row" id="legend-pieno"></div></div>
+  <div class="card"><div class="card-title">Km nel tempo</div><div class="chart-wrap" style="height:240px"><canvas id="chart-km"></canvas></div></div>`;
+}
+function initCharts() {
+  if (typeof Chart === 'undefined') return;
+  const viaggi = APP.viaggi;
+  const tarCounts = { AR7: 0, Scout: 0, Altro: 0 };
+  viaggi.filter(v => v.tariffa && tarCounts[v.tariffa] !== undefined).forEach(v => tarCounts[v.tariffa]++);
+  buildPie('chart-tariffe', 'legend-tariffe', ['AR7', 'Altri Scout', 'Altro'], [tarCounts.AR7, tarCounts.Scout, tarCounts.Altro], ['#a8ccff', '#7ecb82', '#fdd88a']);
+  const conPieno = viaggi.filter(v => v.pieno).length;
+  buildPie('chart-pieno', 'legend-pieno', ['Sì', 'No'], [conPieno, viaggi.length - conPieno], ['#7ecb82', '#f4a0a0']);
+  const sorted = viaggi.filter(v => v.km_f).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const c3 = $('chart-km'); if (!c3) return;
+  chartInstances['km'] = new Chart(c3, { type: 'line', data: { labels: sorted.map(v => { const d = new Date(v.created_at); return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }); }), datasets: [{ label: 'Km', data: sorted.map(v => v.km_f), borderColor: '#3693ff', backgroundColor: 'rgba(54,147,255,.10)', borderWidth: 2, pointBackgroundColor: '#3693ff', pointRadius: 4, fill: true, tension: .3 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#888' } }, y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 }, color: '#888' } } } } });
+}
+function buildPie(canvasId, legendId, labels, data, colors) {
+  const c = $(canvasId); if (!c) return;
+  const tot = data.reduce((a, b) => a + b, 0);
+  chartInstances[canvasId] = new Chart(c, { type: 'pie', data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: true, aspectRatio: 1, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  ${ctx.label}: ${ctx.parsed} (${tot ? Math.round(ctx.parsed / tot * 100) : 0}%)` } }, datalabels: { color: '#333', font: { size: 12, weight: '600' }, formatter: (value, ctx) => { const pct = tot ? Math.round(value / tot * 100) : 0; if (pct < 7) return ''; return labels[ctx.dataIndex] + '\n' + pct + '%'; }, textAlign: 'center', display: true } } }, plugins: [ChartDataLabels] });
+  const leg = $(legendId); if (leg) leg.innerHTML = '';
 }
 
-function initCharts(){
-  if(typeof Chart==='undefined')return;
-  const viaggi=APP.data.viaggi;
-
-  // Torta tariffe (escludi N/D)
-  const tarCounts={AR7:0,Scout:0,Altro:0};
-  viaggi.filter(v=>v.tariffa&&tarCounts[v.tariffa]!==undefined).forEach(v=>tarCounts[v.tariffa]++);
-  const tarColors=['#a8ccff','#7ecb82','#fdd88a'];
-  const tarKeys=Object.keys(tarCounts);
-  const tarVals=tarKeys.map(k=>tarCounts[k]);
-  buildPie('chart-tariffe','legend-tariffe',tarKeys.map(k=>k==='Scout'?'Altri Scout':k),tarVals,tarColors);
-
-  // Torta pieno
-  const conPieno=viaggi.filter(v=>v.pieno).length;
-  const senzaPieno=viaggi.length-conPieno;
-  buildPie('chart-pieno','legend-pieno',['Sì','No'],[conPieno,senzaPieno],['#7ecb82','#f4a0a0']);
-
-  // Lineare km nel tempo
-  const sorted=viaggi.filter(v=>v.kmF).sort((a,b)=>a.ts-b.ts);
-  const kmLabels=sorted.map(v=>{const d=new Date(v.ts);return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})});
-  const kmVals=sorted.map(v=>v.kmF);
-  const c3=$('chart-km');if(!c3)return;
-  chartInstances['km']=new Chart(c3,{
-    type:'line',
-    data:{labels:kmLabels,datasets:[{label:'Km contachilometri',data:kmVals,borderColor:'#3693ff',backgroundColor:'rgba(54,147,255,.10)',borderWidth:2,pointBackgroundColor:'#3693ff',pointRadius:4,fill:true,tension:.3}]},
-    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}},y:{grid:{color:'#f0f0f0'},ticks:{font:{size:11},color:'#888'}}}}
-  });
-}
-
-function buildPie(canvasId,legendId,labels,data,colors){
-  const c=$(canvasId);if(!c)return;
-  const tot=data.reduce((a,b)=>a+b,0);
-  chartInstances[canvasId]=new Chart(c,{
-    type:'pie',
-    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
-    options:{
-      responsive:true,maintainAspectRatio:true,aspectRatio:1,
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{label:ctx=>`  ${ctx.label}: ${ctx.parsed} (${tot?Math.round(ctx.parsed/tot*100):0}%)`}},
-        datalabels:{
-          color:'#333',
-          font:{size:12,weight:'600'},
-          formatter:(value,ctx)=>{
-            const pct=tot?Math.round(value/tot*100):0;
-            if(pct<7)return '';
-            return labels[ctx.dataIndex]+'\n'+pct+'%';
-          },
-          textAlign:'center',
-          display:true
-        }
-      }
-    },
-    plugins:[ChartDataLabels]
-  });
-  const leg=$(legendId);if(leg)leg.innerHTML='';
-}
-
-/* ---- IMPOSTAZIONI ---- */
-function renderImpostazioni(){
-  const u=APP.state.user;const gestore=isGestore(u);const t=CFG.tariffe;
+// ═══════════════════════════════════════════
+//  IMPOSTAZIONI
+// ═══════════════════════════════════════════
+function renderImpostazioni() {
+  const p = APP.profilo; const gestore = isGestore(p); const c = APP.cfg;
   return `
   <div class="section-title">Impostazioni</div>
   <div class="card">
     <div class="card-title">Il tuo profilo</div>
-    <div class="user-chip">
-      <div class="user-avatar">${u.nome.substr(0,2).toUpperCase()}</div>
-      <div class="user-info"><div class="user-name">${u.nome}</div><div class="user-role">${u.email} · ${u.ruolo}</div></div>
-    </div>
-    <div class="field" style="margin-bottom:8px"><label>Nome</label><input id="p-nome" value="${u.nome.split(' ')[0]||''}"/></div>
-    <div class="field" style="margin-bottom:8px"><label>Cognome</label><input id="p-cognome" value="${u.nome.includes(' ')?u.nome.split(' ').slice(1).join(' '):''}"/></div>
+    <div class="user-chip"><div class="user-avatar">${p ? p.nome.substr(0, 2).toUpperCase() : '?'}</div><div class="user-info"><div class="user-name">${p ? p.nome : ''}</div><div class="user-role">${APP.user ? APP.user.email : ''} · ${p ? p.ruolo : ''}</div></div></div>
+    <div class="field" style="margin-bottom:8px"><label>Nome</label><input id="p-nome" value="${p ? p.nome.split(' ')[0] : ''}"/></div>
+    <div class="field" style="margin-bottom:8px"><label>Cognome</label><input id="p-cognome" value="${p && p.nome.includes(' ') ? p.nome.split(' ').slice(1).join(' ') : ''}"/></div>
     <div class="field" style="margin-bottom:10px"><label>Nuova password</label><input id="p-pass" type="password" placeholder="lascia vuoto per non cambiare"/></div>
     <button class="btn btn-primary" onclick="salvaProfilo()">Salva profilo</button>
   </div>
-  ${gestore?`
-  <div class="card">
-    <div class="card-title">Logo</div>
-    <input id="logo-url" placeholder="https://url-immagine.png" value="${APP.state.logoUrl||''}"/>
-    <button class="btn btn-primary" style="margin-top:10px" onclick="saveLogo()">Salva logo</button>
-  </div>
+  ${gestore ? `
+  <div class="card"><div class="card-title">Logo</div><input id="logo-url" placeholder="https://url-immagine.png" value="${APP.logoUrl || ''}"/><button class="btn btn-primary" style="margin-top:10px" onclick="saveLogo()">Salva logo</button></div>
   <div class="card">
     <div class="card-title">Tariffe</div>
     <div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--blu)">AR7 (nessun costo)</div>
     <div class="tariffa-info">Gratuita. Solo obbligo pieno.</div>
     <div style="font-size:13px;font-weight:600;margin:12px 0 6px;color:var(--blu)">Altri Scout</div>
-    <div class="row2" style="margin-bottom:6px">
-      <div class="field"><label>€/giorno base</label><input id="t-scout-g" type="number" step="1" value="${t.Scout.giornoBase}"/></div>
-      <div class="field"><label>Km inclusi/g</label><input id="t-scout-km" type="number" step="10" value="${t.Scout.kmInclusi}"/></div>
-    </div>
-    <div class="row2" style="margin-bottom:6px">
-      <div class="field"><label>Extra ogni (km)</label><input id="t-scout-ogi" type="number" step="10" value="${t.Scout.extraOgni}"/></div>
-      <div class="field"><label>Costo extra (€)</label><input id="t-scout-ext" type="number" step="1" value="${t.Scout.extraCosto}"/></div>
-    </div>
+    <div class="row2" style="margin-bottom:6px"><div class="field"><label>€/giorno base</label><input id="t-scout-g" type="number" step="1" value="${c.tariffa_scout_giorno}"/></div><div class="field"><label>Km inclusi/g</label><input id="t-scout-km" type="number" step="10" value="${c.tariffa_scout_km_inclusi}"/></div></div>
+    <div class="row2" style="margin-bottom:6px"><div class="field"><label>Extra ogni (km)</label><input id="t-scout-ogi" type="number" step="10" value="${c.tariffa_scout_extra_ogni}"/></div><div class="field"><label>Costo extra (€)</label><input id="t-scout-ext" type="number" step="1" value="${c.tariffa_scout_extra_costo}"/></div></div>
     <div style="font-size:13px;font-weight:600;margin:12px 0 6px;color:var(--blu)">Altro</div>
-    <div class="row2" style="margin-bottom:6px">
-      <div class="field"><label>€/giorno base</label><input id="t-altro-g" type="number" step="1" value="${t.Altro.giornoBase}"/></div>
-      <div class="field"><label>Km inclusi/g</label><input id="t-altro-km" type="number" step="10" value="${t.Altro.kmInclusi}"/></div>
-    </div>
-    <div class="row2" style="margin-bottom:6px">
-      <div class="field"><label>Extra ogni (km)</label><input id="t-altro-ogi" type="number" step="10" value="${t.Altro.extraOgni}"/></div>
-      <div class="field"><label>Costo extra (€)</label><input id="t-altro-ext" type="number" step="1" value="${t.Altro.extraCosto}"/></div>
-    </div>
+    <div class="row2" style="margin-bottom:6px"><div class="field"><label>€/giorno base</label><input id="t-altro-g" type="number" step="1" value="${c.tariffa_altro_giorno}"/></div><div class="field"><label>Km inclusi/g</label><input id="t-altro-km" type="number" step="10" value="${c.tariffa_altro_km_inclusi}"/></div></div>
+    <div class="row2" style="margin-bottom:6px"><div class="field"><label>Extra ogni (km)</label><input id="t-altro-ogi" type="number" step="10" value="${c.tariffa_altro_extra_ogni}"/></div><div class="field"><label>Costo extra (€)</label><input id="t-altro-ext" type="number" step="1" value="${c.tariffa_altro_extra_costo}"/></div></div>
     <div style="font-size:13px;font-weight:600;margin:12px 0 6px;color:var(--blu)">Carburante</div>
-    <div class="row2" style="margin-bottom:10px">
-      <div class="field"><label>Consumo (L/100km)</label><input id="t-cons" type="number" step="0.1" value="${CFG.consumoPer100km}"/></div>
-      <div class="field"><label>Prezzo (€/L)</label><input id="t-prezzo" type="number" step="0.01" value="${CFG.prezzoCarburante}"/></div>
-    </div>
+    <div class="row2" style="margin-bottom:10px"><div class="field"><label>Consumo (L/100km)</label><input id="t-cons" type="number" step="0.1" value="${c.carburante_consumo}"/></div><div class="field"><label>Prezzo (€/L)</label><input id="t-prezzo" type="number" step="0.01" value="${c.carburante_prezzo}"/></div></div>
     <button class="btn btn-success" onclick="saveTariffe()">Salva tariffe</button>
-  </div>`:''}
+  </div>` : ''}
   <button class="btn btn-outline" style="margin-top:4px" onclick="doLogout()">⏏ Esci</button>`;
 }
 
-/* ---- LOGIN / REGISTRATI ---- */
-function renderLogin(){
-  const lc=APP.state.logoUrl?`<img src="${APP.state.logoUrl}" alt="logo" style="width:100%;height:100%;object-fit:contain">`:`<div style="font-size:22px;font-weight:800;color:#fff">AR7</div>`;
-  return `<div class="login-wrap">
-    <div class="login-card">
-      <div class="login-logo">${lc}</div>
-      <div class="login-title">Furgone Scout AR7</div>
-      <div class="login-sub">Gruppo Scout Arezzo 7</div>
-      ${APP.state.alert?`<div class="alert alert-err">${APP.state.alert.msg}</div>`:''}
-      <div class="field" style="margin-bottom:10px"><label>Utente</label><input id="l-email" type="email" autocomplete="username"/></div>
-      <div class="field" style="margin-bottom:14px"><label>Password</label><input id="l-pass" type="password" autocomplete="current-password"/></div>
-      <button class="btn btn-primary" onclick="doLogin()">Accedi</button>
-      <button class="btn btn-outline" style="margin-top:10px" onclick="goRegistrati()">Registrati</button>
-      <div class="divider">oppure</div>
-      <button class="btn" style="background:var(--grigio-bg);color:var(--testo2);border:1px solid var(--bordo)" onclick="doAnonimo()">Continua come ospite</button>
-    </div>
-  </div>`;
+// ═══════════════════════════════════════════
+//  LOGIN / REGISTRATI
+// ═══════════════════════════════════════════
+function renderLogin() {
+  const lc = APP.logoUrl ? `<img src="${APP.logoUrl}" alt="logo" style="width:100%;height:100%;object-fit:contain">` : `<div style="font-size:22px;font-weight:800;color:#fff">AR7</div>`;
+  return `<div class="login-wrap"><div class="login-card">
+    <div class="login-logo">${lc}</div>
+    <div class="login-title">Furgone Scout AR7</div>
+    <div class="login-sub">Gruppo Scout Arezzo 7</div>
+    ${APP.alert ? `<div class="alert alert-err">${APP.alert.msg}</div>` : ''}
+    <div class="field" style="margin-bottom:10px"><label>Utente</label><input id="l-email" type="email" autocomplete="username"/></div>
+    <div class="field" style="margin-bottom:14px"><label>Password</label><input id="l-pass" type="password" autocomplete="current-password"/></div>
+    <button class="btn btn-primary" onclick="doLogin()">Accedi</button>
+    <button class="btn btn-outline" style="margin-top:10px" onclick="goRegistrati()">Registrati</button>
+    <div class="divider">oppure</div>
+    <button class="btn" style="background:var(--grigio-bg);color:var(--testo2);border:1px solid var(--bordo)" onclick="doAnonimo()">Continua come ospite</button>
+  </div></div>`;
 }
 
-function renderRegistrati(){
-  const res=APP.state.regResult;
-  const lc=APP.state.logoUrl?`<img src="${APP.state.logoUrl}" alt="logo" style="width:100%;height:100%;object-fit:contain">`:`<div style="font-size:22px;font-weight:800;color:#fff">AR7</div>`;
-  return `<div class="login-wrap">
-    <div class="login-card">
-      <div class="login-logo">${lc}</div>
-      <div class="login-title">Crea account</div>
-      <div class="login-sub">Le credenziali ti verranno mostrate al termine</div>
-      ${res?`
-        <div class="reg-result">
-          <div class="reg-result-title">✓ Account creato! Salva queste credenziali:</div>
-          <div class="reg-credential"><div class="reg-credential-label">Utente (email)</div><div class="reg-credential-value">${res.email}</div></div>
-          <div class="reg-credential"><div class="reg-credential-label">Password</div><div class="reg-credential-value">${res.pass}</div></div>
-        </div>
-        <button class="btn btn-primary" onclick="doLoginConCredenziali('${res.email}','${res.pass}')">Accedi ora →</button>
-        <button class="btn btn-outline" style="margin-top:10px" onclick="goLogin()">← Torna al login</button>
-      `:`
-        ${APP.state.alert?`<div class="alert alert-err">${APP.state.alert.msg}</div>`:''}
-        <div class="row2" style="margin-bottom:10px">
-          <div class="field"><label>Nome</label><input id="r-nome"/></div>
-          <div class="field"><label>Cognome</label><input id="r-cognome"/></div>
-        </div>
-        <div class="field" style="margin-bottom:10px"><label>Password</label><input id="r-pass" type="password"/></div>
-        <div class="field" style="margin-bottom:14px"><label>Conferma password</label><input id="r-pass2" type="password"/></div>
-        <button class="btn btn-primary" onclick="doRegistrati()">Crea account</button>
-        <button class="btn btn-outline" style="margin-top:10px" onclick="goLogin()">← Torna al login</button>
-      `}
-    </div>
-  </div>`;
+function renderRegistrati() {
+  const res = APP.regResult;
+  const lc = APP.logoUrl ? `<img src="${APP.logoUrl}" alt="logo" style="width:100%;height:100%;object-fit:contain">` : `<div style="font-size:22px;font-weight:800;color:#fff">AR7</div>`;
+  return `<div class="login-wrap"><div class="login-card">
+    <div class="login-logo">${lc}</div>
+    <div class="login-title">Crea account</div>
+    <div class="login-sub">Le credenziali ti verranno mostrate al termine</div>
+    ${res ? `
+      <div class="reg-result"><div class="reg-result-title">✓ Account creato! Salva queste credenziali:</div>
+        <div class="reg-credential"><div class="reg-credential-label">Utente (email)</div><div class="reg-credential-value">${res.email}</div></div>
+        <div class="reg-credential"><div class="reg-credential-label">Password</div><div class="reg-credential-value">${res.pass}</div></div>
+      </div>
+      <button class="btn btn-primary" onclick="doLoginConCredenziali('${res.email}','${res.pass}')">Accedi ora →</button>
+      <button class="btn btn-outline" style="margin-top:10px" onclick="goLogin()">← Torna al login</button>
+    ` : `
+      ${APP.alert ? `<div class="alert alert-err">${APP.alert.msg}</div>` : ''}
+      <div class="row2" style="margin-bottom:10px"><div class="field"><label>Nome</label><input id="r-nome"/></div><div class="field"><label>Cognome</label><input id="r-cognome"/></div></div>
+      <div class="field" style="margin-bottom:10px"><label>Password</label><input id="r-pass" type="password"/></div>
+      <div class="field" style="margin-bottom:14px"><label>Conferma password</label><input id="r-pass2" type="password"/></div>
+      <button class="btn btn-primary" onclick="doRegistrati()">Crea account</button>
+      <button class="btn btn-outline" style="margin-top:10px" onclick="goLogin()">← Torna al login</button>
+    `}
+  </div></div>`;
 }
 
-/* ---- MODALI ---- */
-function renderModal(){
-  const m=APP.state.modal;
-  if(m==='edit-viaggio')return renderModalEditViaggio();
-  if(m==='add-utente')return renderModalAddUtente();
-  if(m==='edit-utente')return renderModalEditUtente();
-  if(m==='add-team')return renderModalAddTeam();
-  if(m==='edit-team')return renderModalEditTeam();
+// ═══════════════════════════════════════════
+//  MODALI
+// ═══════════════════════════════════════════
+function renderModal() {
+  const m = APP.modal;
+  if (m === 'edit-viaggio') return renderModalEditViaggio();
+  if (m === 'add-utente') return renderModalAddUtente();
+  if (m === 'edit-utente') return renderModalEditUtente();
+  if (m === 'add-team') return renderModalAddTeam();
+  if (m === 'edit-team') return renderModalEditTeam();
   return '';
 }
-function renderModalEditViaggio(){
-  const v=APP.data.viaggi.find(x=>x.id===APP.state.editId);if(!v)return '';
+function renderModalEditViaggio() {
+  const v = APP.viaggi.find(x => x.id === APP.editId); if (!v) return '';
+  const c = APP.cfg;
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">✏️ Modifica viaggio</div>
-    <div class="row2" style="margin-bottom:8px">
-      <div class="field"><label>Nome</label><input id="m-nome" value="${v.nome}"/></div>
-      <div class="field"><label>Cognome</label><input id="m-cognome" value="${v.cognome}"/></div>
-    </div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-nome" value="${v.nome}"/></div><div class="field"><label>Cognome</label><input id="m-cognome" value="${v.cognome}"/></div></div>
     <div class="field" style="margin-bottom:8px"><label>Utilizzo</label><input id="m-utilizzo" value="${v.utilizzo}"/></div>
-    <div class="row2" style="margin-bottom:8px">
-      <div class="field"><label>Km iniziali</label><input id="m-kmi" type="number" value="${v.kmI}"/></div>
-      <div class="field"><label>Km finali</label><input id="m-kmf" type="number" value="${v.kmF}"/></div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Km iniziali</label><input id="m-kmi" type="number" value="${v.km_i}"/></div><div class="field"><label>Km finali</label><input id="m-kmf" type="number" value="${v.km_f || ''}"/></div></div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Ritiro</label><input id="m-ritiro" type="datetime-local" value="${v.ritiro ? v.ritiro.slice(0,16) : ''}"/></div><div class="field"><label>Riconsegna</label><input id="m-riconsegna" type="datetime-local" value="${v.riconsegna ? v.riconsegna.slice(0,16) : ''}"/></div></div>
+    <div class="field" style="margin-bottom:10px"><label>⚡ Tariffa</label>
+      <select id="m-tariffa"><option value="">Nessuna</option><option ${v.tariffa === 'AR7' ? 'selected' : ''} value="AR7">AR7 — gratuita</option><option ${v.tariffa === 'Scout' ? 'selected' : ''} value="Scout">Altri Scout — €${c.tariffa_scout_giorno}/g</option><option ${v.tariffa === 'Altro' ? 'selected' : ''} value="Altro">Altro — €${c.tariffa_altro_giorno}/g</option></select>
     </div>
-    <div class="row2" style="margin-bottom:8px">
-      <div class="field"><label>Ritiro</label><input id="m-ritiro" type="datetime-local" value="${v.ritiro||''}"/></div>
-      <div class="field"><label>Riconsegna</label><input id="m-riconsegna" type="datetime-local" value="${v.riconsegna||''}"/></div>
-    </div>
-    <div class="field" style="margin-bottom:10px">
-      <label>⚡ Tariffa</label>
-      <select id="m-tariffa">
-        <option value="">Nessuna (da definire)</option>
-        <option ${v.tariffa==='AR7'?'selected':''} value="AR7">AR7 — gratuita, solo pieno</option>
-        <option ${v.tariffa==='Scout'?'selected':''} value="Scout">Altri Scout — €${CFG.tariffe.Scout.giornoBase}/g + km</option>
-        <option ${v.tariffa==='Altro'?'selected':''} value="Altro">Altro — €${CFG.tariffe.Altro.giornoBase}/g + km</option>
-      </select>
-    </div>
-    <div class="switch-row" style="margin-bottom:6px">
-      <span style="font-size:14px">⛽ Pieno effettuato</span>
-      <button class="toggle ${v.pieno?'on':''}" id="m-pieno" onclick="this.classList.toggle('on')"></button>
-    </div>
-    <div class="switch-row" style="margin-bottom:14px">
-      <span style="font-size:14px">✅ Approvato</span>
-      <button class="toggle ${v.approvato?'on':''}" id="m-approvato" onclick="this.classList.toggle('on')"></button>
-    </div>
+    <div class="switch-row" style="margin-bottom:6px"><span style="font-size:14px">⛽ Pieno effettuato</span><button class="toggle ${v.pieno ? 'on' : ''}" id="m-pieno" onclick="this.classList.toggle('on')"></button></div>
+    <div class="switch-row" style="margin-bottom:14px"><span style="font-size:14px">✅ Approvato</span><button class="toggle ${v.approvato ? 'on' : ''}" id="m-approvato" onclick="this.classList.toggle('on')"></button></div>
     <button class="btn btn-success" onclick="saveEditViaggio()">Salva modifiche</button>
   </div></div>`;
 }
-function renderModalAddUtente(){
+function renderModalAddUtente() {
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">👤 Nuovo utente</div>
-    <div class="row2" style="margin-bottom:8px">
-      <div class="field"><label>Nome</label><input id="m-unome"/></div>
-      <div class="field"><label>Cognome</label><input id="m-ucognome"/></div>
-    </div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-unome"/></div><div class="field"><label>Cognome</label><input id="m-ucognome"/></div></div>
     <div class="field" style="margin-bottom:4px"><label>Email (opzionale)</label><input id="m-uemail" placeholder="lascia vuoto per auto-generare"/></div>
     <div style="font-size:11px;color:var(--testo2);margin-bottom:8px">Auto: nome.cognome@ar7.it</div>
     <div class="field" style="margin-bottom:8px"><label>Password</label><input id="m-upass" type="password"/></div>
-    <div class="field" style="margin-bottom:14px"><label>Ruolo</label>
-      <select id="m-uruolo"><option value="utente">Utente</option><option value="admin">Admin</option><option value="gestore">Gestore</option></select>
-    </div>
+    <div class="field" style="margin-bottom:14px"><label>Ruolo</label><select id="m-uruolo"><option value="utente">Utente</option><option value="admin">Admin</option><option value="gestore">Gestore</option></select></div>
     <button class="btn btn-success" onclick="saveAddUtente()">Aggiungi utente</button>
   </div></div>`;
 }
-function renderModalEditUtente(){
-  const u=APP.data.utenti.find(x=>x.id===APP.state.editId);if(!u)return '';
-  const np=u.nome.split(' ')[0]||'';const cp=u.nome.includes(' ')?u.nome.split(' ').slice(1).join(' '):'';
+function renderModalEditUtente() {
+  const u = APP.utenti.find(x => x.id === APP.editId); if (!u) return '';
+  const np = u.nome.split(' ')[0] || ''; const cp = u.nome.includes(' ') ? u.nome.split(' ').slice(1).join(' ') : '';
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">✏️ Modifica utente</div>
-    <div class="row2" style="margin-bottom:8px">
-      <div class="field"><label>Nome</label><input id="m-unome" value="${np}"/></div>
-      <div class="field"><label>Cognome</label><input id="m-ucognome" value="${cp}"/></div>
-    </div>
-    <div class="field" style="margin-bottom:8px"><label>Email</label><input id="m-uemail" value="${u.email}"/></div>
-    <div class="field" style="margin-bottom:8px"><label>Nuova password</label><input id="m-upass" type="password" placeholder="lascia vuoto per non cambiare"/></div>
-    <div class="field" style="margin-bottom:14px"><label>Ruolo</label>
-      <select id="m-uruolo">
-        <option ${u.ruolo==='utente'?'selected':''} value="utente">Utente</option>
-        <option ${u.ruolo==='admin'?'selected':''} value="admin">Admin</option>
-        <option ${u.ruolo==='gestore'?'selected':''} value="gestore">Gestore</option>
-      </select>
-    </div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-unome" value="${np}"/></div><div class="field"><label>Cognome</label><input id="m-ucognome" value="${cp}"/></div></div>
+    <div class="field" style="margin-bottom:14px"><label>Ruolo</label><select id="m-uruolo"><option ${u.ruolo === 'utente' ? 'selected' : ''} value="utente">Utente</option><option ${u.ruolo === 'admin' ? 'selected' : ''} value="admin">Admin</option><option ${u.ruolo === 'gestore' ? 'selected' : ''} value="gestore">Gestore</option></select></div>
     <button class="btn btn-success" onclick="saveEditUtente()">Salva modifiche</button>
   </div></div>`;
 }
-function renderModalAddTeam(){
+function renderModalAddTeam() {
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">🏕 Nuovo team</div>
     <div class="field" style="margin-bottom:8px"><label>Nome team</label><input id="m-tnome"/></div>
     <div class="field" style="margin-bottom:8px"><label>Descrizione</label><input id="m-tdesc"/></div>
-    <div class="field" style="margin-bottom:14px"><label>Responsabile</label>
-      <select id="m-tresp">${APP.data.utenti.map(u=>`<option value="${u.id}">${u.nome}</option>`).join('')}</select>
-    </div>
+    <div class="field" style="margin-bottom:14px"><label>Responsabile</label><select id="m-tresp">${APP.utenti.map(u => `<option value="${u.id}">${u.nome}</option>`).join('')}</select></div>
     <button class="btn btn-success" onclick="saveAddTeam()">Crea team</button>
   </div></div>`;
 }
-function renderModalEditTeam(){
-  const t=APP.data.team.find(x=>x.id===APP.state.editId);if(!t)return '';
+function renderModalEditTeam() {
+  const t = APP.team.find(x => x.id === APP.editId); if (!t) return '';
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">✏️ Modifica team</div>
     <div class="field" style="margin-bottom:8px"><label>Nome team</label><input id="m-tnome" value="${t.nome}"/></div>
-    <div class="field" style="margin-bottom:8px"><label>Descrizione</label><input id="m-tdesc" value="${t.descrizione||''}"/></div>
-    <div class="field" style="margin-bottom:14px"><label>Responsabile</label>
-      <select id="m-tresp">${APP.data.utenti.map(u=>`<option value="${u.id}" ${t.responsabile===u.id?'selected':''}>${u.nome}</option>`).join('')}</select>
-    </div>
+    <div class="field" style="margin-bottom:8px"><label>Descrizione</label><input id="m-tdesc" value="${t.descrizione || ''}"/></div>
+    <div class="field" style="margin-bottom:14px"><label>Responsabile</label><select id="m-tresp">${APP.utenti.map(u => `<option value="${u.id}" ${t.responsabile_id === u.id ? 'selected' : ''}>${u.nome}</option>`).join('')}</select></div>
     <button class="btn btn-success" onclick="saveEditTeam()">Salva modifiche</button>
   </div></div>`;
 }
 
-/* ---- BIND ---- */
-function bindLogin(){const p=$('l-pass');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();})}
-function bindRegistrati(){const p=$('r-pass2');if(p)p.addEventListener('keydown',e=>{if(e.key==='Enter')doRegistrati();})}
-function bindMain(){
-  const kmf=$('f-kmf');
-  if(kmf&&APP.state.viaggioInCorso){
-    const upd=()=>{const el=$('km-preview');if(!el)return;const d=parseFloat(kmf.value||0)-parseFloat(APP.state.viaggioInCorso.kmI||0);el.innerHTML=d>0?`<b>${d} km</b> percorsi`:''};
-    kmf.addEventListener('input',upd);
-  }
+// ═══════════════════════════════════════════
+//  BIND
+// ═══════════════════════════════════════════
+function bindLogin() { const p = $('l-pass'); if (p) p.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }); }
+function bindRegistrati() { const p = $('r-pass2'); if (p) p.addEventListener('keydown', e => { if (e.key === 'Enter') doRegistrati(); }); }
+function bindMain() {
+  const kmf = $('f-kmf');
+  if (kmf && APP.viaggioInCorso) { const upd = () => { const el = $('km-preview'); if (!el) return; const d = parseFloat(kmf.value || 0) - parseFloat(APP.viaggioInCorso.km_i || 0); el.innerHTML = d > 0 ? `<b>${d} km</b> percorsi` : ''; }; kmf.addEventListener('input', upd); }
 }
-function renderInner(){const mc=$('main-content');if(mc){mc.innerHTML=renderAlert()+renderMain();bindMain();if(APP.state.tab==='statistiche')setTimeout(initCharts,50);}}
+function renderInner() { const mc = $('main-content'); if (mc) { mc.innerHTML = renderAlert() + renderMain(); bindMain(); if (APP.tab === 'statistiche') setTimeout(initCharts, 80); } }
 
-/* ---- ACTIONS ---- */
-window.setTab=t=>{APP.state.tab=t;render()};
-window.setAdminTab=t=>{APP.state.adminTab=t;render()};
-window.closeModal=e=>{if(!e||e.target===e.currentTarget){APP.state.modal=null;APP.state.editId=null;render();}};
-window.goRegistrati=()=>{APP.state.subview='registrati';APP.state.regResult=null;APP.state.alert=null;render()};
-window.goLogin=()=>{APP.state.subview=null;APP.state.regResult=null;APP.state.alert=null;render()};
+// ═══════════════════════════════════════════
+//  ACTIONS — NAVIGAZIONE
+// ═══════════════════════════════════════════
+window.setTab = async t => { APP.tab = t; if (isAdmin(APP.profilo)) { await loadViaggi(); if (t === 'admin' || t === 'statistiche') { await loadUtenti(); await loadTeam(); } } render(); };
+window.setAdminTab = t => { APP.adminTab = t; render(); };
+window.closeModal = e => { if (!e || e.target === e.currentTarget) { APP.modal = null; APP.editId = null; render(); } };
+window.goRegistrati = () => { APP.subview = 'registrati'; APP.regResult = null; APP.alert = null; render(); };
+window.goLogin = () => { APP.subview = null; APP.regResult = null; APP.alert = null; render(); };
 
-window.doLogin=function(){
-  const email=val('l-email').trim().toLowerCase(),pass=val('l-pass');
-  const u=APP.data.utenti.find(x=>x.email.toLowerCase()===email&&x.pass===pass);
-  if(!u){APP.state.alert={msg:'Credenziali non valide',tipo:'err'};render();return;}
-  APP.state.user=u;APP.state.alert=null;render();
-};
-window.doLoginConCredenziali=function(email,pass){
-  const u=APP.data.utenti.find(x=>x.email.toLowerCase()===email.toLowerCase()&&x.pass===pass);
-  if(!u)return;
-  APP.state.user=u;APP.state.subview=null;APP.state.regResult=null;APP.state.alert=null;render();
-};
-window.doAnonimo=function(){APP.state.user={id:'anon-'+uid(),nome:'Ospite',email:'',ruolo:'utente',anonimo:true};render();};
-window.doLogout=function(){destroyCharts();APP.state.user=null;APP.state.alert=null;render();};
-
-window.doRegistrati=function(){
-  const nome=val('r-nome').trim(),cognome=val('r-cognome').trim(),pass=val('r-pass'),pass2=val('r-pass2');
-  if(!nome||!cognome){APP.state.alert={msg:'Inserisci nome e cognome',tipo:'err'};render();return;}
-  if(!pass||pass.length<4){APP.state.alert={msg:'Password di almeno 4 caratteri',tipo:'err'};render();return;}
-  if(pass!==pass2){APP.state.alert={msg:'Le password non coincidono',tipo:'err'};render();return;}
-  const email=generaEmail(nome,cognome);
-  APP.data.utenti.push({id:uid(),nome:nome+' '+cognome,email,pass,ruolo:'utente'});
-  save();APP.state.regResult={email,pass};APP.state.alert=null;render();
+// ═══════════════════════════════════════════
+//  ACTIONS — AUTH
+// ═══════════════════════════════════════════
+window.doLogin = async function () {
+  const email = val('l-email').trim(), pass = val('l-pass');
+  if (!email || !pass) { APP.alert = { msg: 'Inserisci utente e password', tipo: 'err' }; render(); return; }
+  $('app').innerHTML = '<div class="loading"><div class="spinner"></div>Accesso in corso...</div>';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { APP.alert = { msg: 'Credenziali non valide', tipo: 'err' }; render(); return; }
+  APP.user = data.user;
+  const { data: profilo } = await sb.from('profili').select('*').eq('id', APP.user.id).single();
+  APP.profilo = profilo;
+  await loadAll();
+  APP.tab = 'nuovo'; APP.alert = null; render();
 };
 
-window.salvaProfilo=function(){
-  const u=APP.state.user;
-  const nome=val('p-nome').trim(),cognome=val('p-cognome').trim(),pass=val('p-pass');
-  if(!nome||!cognome){showAlert('Inserisci nome e cognome','err');return;}
-  const idx=APP.data.utenti.findIndex(x=>x.id===u.id);
-  if(idx>=0){APP.data.utenti[idx].nome=nome+' '+cognome;if(pass)APP.data.utenti[idx].pass=pass;APP.state.user={...APP.data.utenti[idx]};}
-  else{u.nome=nome+' '+cognome;if(pass)u.pass=pass;}
-  save();showAlert('✓ Profilo aggiornato','ok');render();
+window.doLoginConCredenziali = async function (email, pass) {
+  $('app').innerHTML = '<div class="loading"><div class="spinner"></div>Accesso in corso...</div>';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { APP.alert = { msg: 'Errore accesso', tipo: 'err' }; render(); return; }
+  APP.user = data.user;
+  const { data: profilo } = await sb.from('profili').select('*').eq('id', APP.user.id).single();
+  APP.profilo = profilo;
+  await loadAll();
+  APP.subview = null; APP.regResult = null; APP.tab = 'nuovo'; render();
 };
 
-window.iniziaViaggio=function(){
-  const nome=val('f-nome').trim(),cognome=val('f-cognome').trim(),utilizzo=val('f-utilizzo').trim();
-  const kmi=parseFloat(val('f-kmi')),ritiro=val('f-ritiro');
-  if(!nome||!cognome){showAlert('Inserisci nome e cognome','err');return;}
-  if(!utilizzo){showAlert('Inserisci utilizzo/destinazione','err');return;}
-  if(!kmi){showAlert('Inserisci i km iniziali','err');return;}
-  if(!ritiro){showAlert('Inserisci data e ora di ritiro','err');return;}
-  APP.state.viaggioInCorso={nome,cognome,utilizzo,kmI:kmi,ritiro};
+window.doAnonimo = function () {
+  APP.user = { id: 'anon-' + Math.random().toString(36).substr(2, 9), email: '' };
+  APP.profilo = { id: APP.user.id, nome: 'Ospite', ruolo: 'utente' };
+  APP.viaggi = []; APP.tab = 'nuovo'; render();
+};
+
+window.doLogout = async function () {
+  await sb.auth.signOut();
+  APP.user = null; APP.profilo = null; APP.viaggi = []; APP.utenti = []; APP.team = [];
+  APP.tab = 'nuovo'; APP.alert = null; render();
+};
+
+window.doRegistrati = async function () {
+  const nome = val('r-nome').trim(), cognome = val('r-cognome').trim(), pass = val('r-pass'), pass2 = val('r-pass2');
+  if (!nome || !cognome) { APP.alert = { msg: 'Inserisci nome e cognome', tipo: 'err' }; render(); return; }
+  if (!pass || pass.length < 6) { APP.alert = { msg: 'Password di almeno 6 caratteri', tipo: 'err' }; render(); return; }
+  if (pass !== pass2) { APP.alert = { msg: 'Le password non coincidono', tipo: 'err' }; render(); return; }
+  const email = generaEmail(nome, cognome);
+  $('app').innerHTML = '<div class="loading"><div class="spinner"></div>Creazione account...</div>';
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  if (error) { APP.alert = { msg: 'Errore: ' + error.message, tipo: 'err' }; render(); return; }
+  // Inserisce il profilo
+  await sb.from('profili').insert({ id: data.user.id, nome: nome + ' ' + cognome, ruolo: 'utente' });
+  APP.regResult = { email, pass }; APP.alert = null; render();
+};
+
+// ═══════════════════════════════════════════
+//  ACTIONS — PROFILO
+// ═══════════════════════════════════════════
+window.salvaProfilo = async function () {
+  const nome = val('p-nome').trim(), cognome = val('p-cognome').trim(), pass = val('p-pass');
+  if (!nome || !cognome) { showAlert('Inserisci nome e cognome', 'err'); return; }
+  const nomeCompleto = nome + ' ' + cognome;
+  await sb.from('profili').update({ nome: nomeCompleto }).eq('id', APP.user.id);
+  if (pass && pass.length >= 6) await sb.auth.updateUser({ password: pass });
+  APP.profilo.nome = nomeCompleto;
+  showAlert('✓ Profilo aggiornato', 'ok');
+};
+
+// ═══════════════════════════════════════════
+//  ACTIONS — VIAGGI
+// ═══════════════════════════════════════════
+window.iniziaViaggio = function () {
+  const nome = val('f-nome').trim(), cognome = val('f-cognome').trim(), utilizzo = val('f-utilizzo').trim();
+  const km_i = parseFloat(val('f-kmi')), ritiro = val('f-ritiro');
+  if (!nome || !cognome) { showAlert('Inserisci nome e cognome', 'err'); return; }
+  if (!utilizzo) { showAlert('Inserisci utilizzo/destinazione', 'err'); return; }
+  if (!km_i) { showAlert('Inserisci i km iniziali', 'err'); return; }
+  if (!ritiro) { showAlert('Inserisci data e ora di ritiro', 'err'); return; }
+  APP.viaggioInCorso = { nome, cognome, utilizzo, km_i, ritiro };
   render();
 };
 
-window.completaViaggio=function(){
-  const vp=APP.state.viaggioInCorso;if(!vp)return;
-  const kmf=parseFloat(val('f-kmf')),riconsegna=val('f-riconsegna'),pieno=val('f-pieno');
-  if(!kmf||kmf<=vp.kmI){showAlert('Km finali devono essere maggiori degli iniziali','err');return;}
-  if(!riconsegna){showAlert('Inserisci data e ora di riconsegna','err');return;}
-  if(!pieno){showAlert('Indica se è stato fatto il pieno','err');return;}
-  APP.data.viaggi.push({id:uid(),uid:APP.state.user.id,nome:vp.nome,cognome:vp.cognome,utilizzo:vp.utilizzo,kmI:vp.kmI,kmF:kmf,ritiro:vp.ritiro,riconsegna,tariffa:null,pieno:pieno==='si',approvato:false,ts:Date.now()});
-  APP.state.viaggioInCorso=null;
-  save();showAlert('✓ Viaggio completato e registrato!','ok');APP.state.tab='storico';render();
+window.completaViaggio = async function () {
+  const vp = APP.viaggioInCorso; if (!vp) return;
+  const km_f = parseFloat(val('f-kmf')), riconsegna = val('f-riconsegna'), pieno = val('f-pieno');
+  if (!km_f || km_f <= vp.km_i) { showAlert('Km finali devono essere maggiori degli iniziali', 'err'); return; }
+  if (!riconsegna) { showAlert('Inserisci data e ora di riconsegna', 'err'); return; }
+  if (!pieno) { showAlert('Indica se è stato fatto il pieno', 'err'); return; }
+  const { error } = await sb.from('viaggi').insert({ uid: APP.user.id, nome: vp.nome, cognome: vp.cognome, utilizzo: vp.utilizzo, km_i: vp.km_i, km_f, ritiro: vp.ritiro, riconsegna, tariffa: null, pieno: pieno === 'si', approvato: false });
+  if (error) { showAlert('Errore salvataggio: ' + error.message, 'err'); return; }
+  APP.viaggioInCorso = null;
+  await loadViaggi();
+  showAlert('✓ Viaggio completato e registrato!', 'ok'); APP.tab = 'storico'; render();
 };
 
-window.annullaViaggio=function(){
-  if(!confirm('Annullare il viaggio in corso? I dati inseriti andranno persi.'))return;
-  APP.state.viaggioInCorso=null;render();
+window.annullaViaggio = function () {
+  if (!confirm('Annullare il viaggio in corso?')) return;
+  APP.viaggioInCorso = null; render();
 };
 
-window.submitViaggio=function(){};
-
-window.openEditViaggio=id=>{APP.state.modal='edit-viaggio';APP.state.editId=id;render()};
-window.saveEditViaggio=function(){
-  const v=APP.data.viaggi.find(x=>x.id===APP.state.editId);if(!v)return;
-  v.nome=val('m-nome');v.cognome=val('m-cognome');v.utilizzo=val('m-utilizzo');
-  v.kmI=parseFloat(val('m-kmi'));v.kmF=parseFloat(val('m-kmf'));
-  v.ritiro=val('m-ritiro');v.riconsegna=val('m-riconsegna');
-  v.tariffa=val('m-tariffa')||null;
-  v.pieno=$('m-pieno')&&$('m-pieno').classList.contains('on');
-  v.approvato=$('m-approvato')&&$('m-approvato').classList.contains('on');
-  save();APP.state.modal=null;APP.state.editId=null;showAlert('✓ Viaggio aggiornato','ok');
+window.openEditViaggio = id => { APP.modal = 'edit-viaggio'; APP.editId = id; render(); };
+window.saveEditViaggio = async function () {
+  const v = APP.viaggi.find(x => x.id === APP.editId); if (!v) return;
+  const updates = { nome: val('m-nome'), cognome: val('m-cognome'), utilizzo: val('m-utilizzo'), km_i: parseFloat(val('m-kmi')), km_f: parseFloat(val('m-kmf')) || null, ritiro: val('m-ritiro') || null, riconsegna: val('m-riconsegna') || null, tariffa: val('m-tariffa') || null, pieno: $('m-pieno') && $('m-pieno').classList.contains('on'), approvato: $('m-approvato') && $('m-approvato').classList.contains('on') };
+  const { error } = await sb.from('viaggi').update(updates).eq('id', APP.editId);
+  if (error) { showAlert('Errore: ' + error.message, 'err'); return; }
+  await loadViaggi(); APP.modal = null; APP.editId = null; showAlert('✓ Viaggio aggiornato', 'ok');
 };
-window.deleteViaggio=id=>{if(!confirm('Eliminare questo viaggio?'))return;APP.data.viaggi=APP.data.viaggi.filter(v=>v.id!==id);save();render()};
-
-window.setTariffaRapida=function(id,tariffa){
-  const v=APP.data.viaggi.find(x=>x.id===id);if(!v)return;
-  v.tariffa=tariffa||null;
-  if(tariffa)v.approvato=true;
-  save();renderInner();
+window.deleteViaggio = async id => {
+  if (!confirm('Eliminare questo viaggio?')) return;
+  await sb.from('viaggi').delete().eq('id', id);
+  await loadViaggi(); render();
 };
-window.saveAddUtente=function(){
-  const nome=val('m-unome').trim(),cognome=val('m-ucognome').trim(),pass=val('m-upass'),ruolo=val('m-uruolo');
-  let email=val('m-uemail').trim();
-  if(!nome||!cognome||!pass){showAlert('Compila nome, cognome e password','err');return;}
-  if(!email)email=generaEmail(nome,cognome);
-  APP.data.utenti.push({id:uid(),nome:nome+' '+cognome,email,pass,ruolo});
-  save();APP.state.modal=null;showAlert('✓ Utente aggiunto ('+email+')','ok');render();
-};
-window.openEditUtente=id=>{APP.state.modal='edit-utente';APP.state.editId=id;render()};
-window.saveEditUtente=function(){
-  const u=APP.data.utenti.find(x=>x.id===APP.state.editId);if(!u)return;
-  const nome=val('m-unome').trim(),cognome=val('m-ucognome').trim(),email=val('m-uemail').trim(),pass=val('m-upass'),ruolo=val('m-uruolo');
-  if(!nome||!cognome||!email){showAlert('Compila tutti i campi','err');return;}
-  u.nome=nome+' '+cognome;u.email=email;u.ruolo=ruolo;if(pass)u.pass=pass;
-  if(APP.state.user.id===u.id)APP.state.user={...u};
-  save();APP.state.modal=null;showAlert('✓ Utente aggiornato','ok');render();
-};
-window.deleteUtente=id=>{if(!confirm('Eliminare questo utente?'))return;APP.data.utenti=APP.data.utenti.filter(u=>u.id!==id);save();render()};
-
-window.openAddTeam=()=>{APP.state.modal='add-team';render()};
-window.saveAddTeam=function(){
-  const nome=val('m-tnome').trim(),desc=val('m-tdesc').trim(),resp=val('m-tresp');
-  if(!nome){showAlert('Inserisci il nome del team','err');return;}
-  APP.data.team.push({id:uid(),nome,descrizione:desc,responsabile:resp});
-  save();APP.state.modal=null;showAlert('✓ Team creato','ok');render();
-};
-window.openEditTeam=id=>{APP.state.modal='edit-team';APP.state.editId=id;render()};
-window.saveEditTeam=function(){
-  const t=APP.data.team.find(x=>x.id===APP.state.editId);if(!t)return;
-  t.nome=val('m-tnome').trim();t.descrizione=val('m-tdesc').trim();t.responsabile=val('m-tresp');
-  save();APP.state.modal=null;showAlert('✓ Team aggiornato','ok');render();
-};
-window.deleteTeam=id=>{if(!confirm('Eliminare questo team?'))return;APP.data.team=APP.data.team.filter(t=>t.id!==id);save();render()};
-
-window.saveLogo=()=>{APP.state.logoUrl=val('logo-url');save();showAlert('✓ Logo aggiornato','ok')};
-window.saveTariffe=function(){
-  CFG.tariffe.Scout.giornoBase=parseFloat(val('t-scout-g'))||20;CFG.tariffe.Scout.kmInclusi=parseFloat(val('t-scout-km'))||100;
-  CFG.tariffe.Scout.extraOgni=parseFloat(val('t-scout-ogi'))||50;CFG.tariffe.Scout.extraCosto=parseFloat(val('t-scout-ext'))||5;
-  CFG.tariffe.Altro.giornoBase=parseFloat(val('t-altro-g'))||30;CFG.tariffe.Altro.kmInclusi=parseFloat(val('t-altro-km'))||100;
-  CFG.tariffe.Altro.extraOgni=parseFloat(val('t-altro-ogi'))||50;CFG.tariffe.Altro.extraCosto=parseFloat(val('t-altro-ext'))||5;
-  CFG.consumoPer100km=parseFloat(val('t-cons'))||8;CFG.prezzoCarburante=parseFloat(val('t-prezzo'))||2.5;
-  save();showAlert('✓ Tariffe salvate','ok');
+window.setTariffaRapida = async function (id, tariffa) {
+  if (!tariffa) return;
+  await sb.from('viaggi').update({ tariffa, approvato: true }).eq('id', id);
+  await loadViaggi(); renderInner();
 };
 
-load();render();
+// ═══════════════════════════════════════════
+//  ACTIONS — UTENTI
+// ═══════════════════════════════════════════
+window.openAddUtente = () => { APP.modal = 'add-utente'; render(); };
+window.saveAddUtente = async function () {
+  const nome = val('m-unome').trim(), cognome = val('m-ucognome').trim(), pass = val('m-upass'), ruolo = val('m-uruolo');
+  let email = val('m-uemail').trim();
+  if (!nome || !cognome || !pass) { showAlert('Compila nome, cognome e password', 'err'); return; }
+  if (!email) email = generaEmail(nome, cognome);
+  const { data, error } = await sb.auth.admin ? 
+    // Se disponibile usa admin API
+    { data: null, error: { message: 'usa signup normale' } } :
+    await sb.auth.signUp({ email, password: pass });
+  // Fallback: crea utente tramite signup e poi aggiorna profilo
+  const { data: sd, error: se } = await sb.auth.signUp({ email, password: pass });
+  if (se) { showAlert('Errore: ' + se.message, 'err'); return; }
+  await sb.from('profili').insert({ id: sd.user.id, nome: nome + ' ' + cognome, ruolo });
+  await loadUtenti(); APP.modal = null; showAlert('✓ Utente aggiunto (' + email + ')', 'ok'); render();
+};
+window.openEditUtente = id => { APP.modal = 'edit-utente'; APP.editId = id; render(); };
+window.saveEditUtente = async function () {
+  const u = APP.utenti.find(x => x.id === APP.editId); if (!u) return;
+  const nome = val('m-unome').trim(), cognome = val('m-ucognome').trim(), ruolo = val('m-uruolo');
+  if (!nome || !cognome) { showAlert('Compila nome e cognome', 'err'); return; }
+  await sb.from('profili').update({ nome: nome + ' ' + cognome, ruolo }).eq('id', APP.editId);
+  await loadUtenti(); APP.modal = null; showAlert('✓ Utente aggiornato', 'ok'); render();
+};
+window.deleteUtente = async id => {
+  if (!confirm('Eliminare questo utente?')) return;
+  await sb.from('profili').delete().eq('id', id);
+  await loadUtenti(); render();
+};
+
+// ═══════════════════════════════════════════
+//  ACTIONS — TEAM
+// ═══════════════════════════════════════════
+window.openAddTeam = () => { APP.modal = 'add-team'; render(); };
+window.saveAddTeam = async function () {
+  const nome = val('m-tnome').trim(), desc = val('m-tdesc').trim(), resp = val('m-tresp');
+  if (!nome) { showAlert('Inserisci il nome del team', 'err'); return; }
+  await sb.from('team').insert({ nome, descrizione: desc, responsabile_id: resp || null });
+  await loadTeam(); APP.modal = null; showAlert('✓ Team creato', 'ok'); render();
+};
+window.openEditTeam = id => { APP.modal = 'edit-team'; APP.editId = id; render(); };
+window.saveEditTeam = async function () {
+  const t = APP.team.find(x => x.id === APP.editId); if (!t) return;
+  await sb.from('team').update({ nome: val('m-tnome').trim(), descrizione: val('m-tdesc').trim(), responsabile_id: val('m-tresp') || null }).eq('id', APP.editId);
+  await loadTeam(); APP.modal = null; showAlert('✓ Team aggiornato', 'ok'); render();
+};
+window.deleteTeam = async id => {
+  if (!confirm('Eliminare questo team?')) return;
+  await sb.from('team').delete().eq('id', id);
+  await loadTeam(); render();
+};
+
+// ═══════════════════════════════════════════
+//  ACTIONS — CONFIG
+// ═══════════════════════════════════════════
+window.saveLogo = async function () {
+  const url = val('logo-url');
+  await sb.from('config').upsert({ chiave: 'logo_url', valore: url });
+  APP.logoUrl = url; APP.cfg.logo_url = url; showAlert('✓ Logo aggiornato', 'ok');
+};
+window.saveTariffe = async function () {
+  const aggiornamenti = [
+    { chiave: 'tariffa_scout_giorno', valore: String(parseFloat(val('t-scout-g')) || 20) },
+    { chiave: 'tariffa_scout_km_inclusi', valore: String(parseFloat(val('t-scout-km')) || 100) },
+    { chiave: 'tariffa_scout_extra_ogni', valore: String(parseFloat(val('t-scout-ogi')) || 50) },
+    { chiave: 'tariffa_scout_extra_costo', valore: String(parseFloat(val('t-scout-ext')) || 5) },
+    { chiave: 'tariffa_altro_giorno', valore: String(parseFloat(val('t-altro-g')) || 30) },
+    { chiave: 'tariffa_altro_km_inclusi', valore: String(parseFloat(val('t-altro-km')) || 100) },
+    { chiave: 'tariffa_altro_extra_ogni', valore: String(parseFloat(val('t-altro-ogi')) || 50) },
+    { chiave: 'tariffa_altro_extra_costo', valore: String(parseFloat(val('t-altro-ext')) || 5) },
+    { chiave: 'carburante_consumo', valore: String(parseFloat(val('t-cons')) || 8) },
+    { chiave: 'carburante_prezzo', valore: String(parseFloat(val('t-prezzo')) || 2.5) },
+  ];
+  await sb.from('config').upsert(aggiornamenti);
+  await loadConfig(); showAlert('✓ Tariffe salvate', 'ok');
+};
+
+// ═══════════════════════════════════════════
+//  AVVIO
+// ═══════════════════════════════════════════
+(async () => {
+  // Controlla se c'è già una sessione attiva
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    APP.user = session.user;
+    const { data: profilo } = await sb.from('profili').select('*').eq('id', APP.user.id).single();
+    APP.profilo = profilo;
+    await loadAll();
+  }
+  render();
+
+  // Ascolta cambi di sessione
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') { APP.user = null; APP.profilo = null; render(); }
+  });
+})();
 </script>
 </body>
 </html>
