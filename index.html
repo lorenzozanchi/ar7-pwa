@@ -110,7 +110,7 @@ canvas{display:block;width:100%!important}
 //  Sostituisci con le tue credenziali dopo aver rigenerato la chiave
 // ═══════════════════════════════════════════
 const SUPABASE_URL = 'https://nxopqexvmespoghtguus.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3BxZXh2bWVzcG9naHRndXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDcwNzMsImV4cCI6MjA5MjM4MzA3M30.Ky1YUjtd-0w9jZGbv2FRv2Y0OLkJxxGITfK-y-pjZmE';
+const SUPABASE_KEY = 'INSERISCI_QUI_LA_NUOVA_CHIAVE_DOPO_AVERLA_RIGENERATA';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ═══════════════════════════════════════════
@@ -635,8 +635,16 @@ window.doLogin = async function () {
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { APP.alert = { msg: 'Credenziali non valide', tipo: 'err' }; render(); return; }
   APP.user = data.user;
-  const { data: profilo } = await sb.from('profili').select('*').eq('id', APP.user.id).single();
-  APP.profilo = profilo;
+  const { data: profilo, error: pe } = await sb.from('profili').select('*').eq('id', APP.user.id).single();
+  if (pe || !profilo) {
+    // Profilo non trovato: crea uno di default
+    const nomeDefault = APP.user.email.split('@')[0];
+    await sb.from('profili').insert({ id: APP.user.id, nome: nomeDefault, ruolo: 'utente' });
+    const { data: p2 } = await sb.from('profili').select('*').eq('id', APP.user.id).single();
+    APP.profilo = p2;
+  } else {
+    APP.profilo = profilo;
+  }
   await loadAll();
   APP.tab = 'nuovo'; APP.alert = null; render();
 };
