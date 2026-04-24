@@ -284,7 +284,7 @@ function renderNuovo() {
     <div class="card-title"><span style="background:var(--blu);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">1</span>Inizio viaggio</div>
     <div class="row2">
       <div class="field"><label>Nome</label><input id="f-nome" value="${vp ? vp.nome : pn}"/></div>
-      <div class="field"><label>Cognome</label><input id="f-cognome" value="${vp ? vp.cognome : pc}"/></div>
+      <div class="field"><label>Cognome <span style="font-size:11px;color:#aaa">(opz.)</span></label><input id="f-cognome" value="${vp ? vp.cognome : pc}"/></div>
     </div>
     <div class="field" style="margin-top:10px"><label>Utilizzo / Destinazione</label><input id="f-utilizzo" value="${vp ? vp.utilizzo : ''}" placeholder="es. Riunione reparto..."/></div>
     <div class="row2" style="margin-top:10px">
@@ -463,7 +463,7 @@ function renderImpostazioni() {
     <div class="card-title">Il tuo profilo</div>
     <div class="user-chip"><div class="user-avatar">${p ? p.nome.substr(0, 2).toUpperCase() : '?'}</div><div class="user-info"><div class="user-name">${p ? p.nome : ''}</div><div class="user-role">${APP.user ? APP.user.email : ''} · ${p ? p.ruolo : ''}</div></div></div>
     <div class="field" style="margin-bottom:8px"><label>Nome</label><input id="p-nome" value="${p ? p.nome.split(' ')[0] : ''}"/></div>
-    <div class="field" style="margin-bottom:8px"><label>Cognome</label><input id="p-cognome" value="${p && p.nome.includes(' ') ? p.nome.split(' ').slice(1).join(' ') : ''}"/></div>
+    <div class="field" style="margin-bottom:8px"><label>Cognome <span style="font-size:11px;color:#aaa">(opz.)</span></label><input id="p-cognome" value="${p && p.nome.includes(' ') ? p.nome.split(' ').slice(1).join(' ') : ''}"/></div>
     <div class="field" style="margin-bottom:10px"><label>Nuova password</label><input id="p-pass" type="password" placeholder="lascia vuoto per non cambiare"/></div>
     <button class="btn btn-primary" onclick="salvaProfilo()">Salva profilo</button>
   </div>
@@ -521,7 +521,7 @@ function renderRegistrati() {
       <button class="btn btn-outline" style="margin-top:10px" onclick="goLogin()">← Torna al login</button>
     ` : `
       ${APP.alert ? `<div class="alert alert-err">${APP.alert.msg}</div>` : ''}
-      <div class="row2" style="margin-bottom:10px"><div class="field"><label>Nome</label><input id="r-nome"/></div><div class="field"><label>Cognome</label><input id="r-cognome"/></div></div>
+      <div class="row2" style="margin-bottom:10px"><div class="field"><label>Nome</label><input id="r-nome"/></div><div class="field"><label>Cognome <span style="font-size:11px;color:#aaa">(opz.)</span></label><input id="r-cognome"/></div></div>
       <div class="field" style="margin-bottom:10px"><label>Password</label><input id="r-pass" type="password"/></div>
       <div class="field" style="margin-bottom:14px"><label>Conferma password</label><input id="r-pass2" type="password"/></div>
       <button class="btn btn-primary" onclick="doRegistrati()">Crea account</button>
@@ -548,7 +548,7 @@ function renderModalEditViaggio() {
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">✏️ Modifica viaggio</div>
-    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-nome" value="${v.nome}"/></div><div class="field"><label>Cognome</label><input id="m-cognome" value="${v.cognome}"/></div></div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-nome" value="${v.nome}"/></div><div class="field"><label>Cognome <span style="font-size:11px;color:#aaa">(opz.)</span></label><input id="m-cognome" value="${v.cognome || ''}"/></div></div>
     <div class="field" style="margin-bottom:8px"><label>Utilizzo</label><input id="m-utilizzo" value="${v.utilizzo}"/></div>
     <div class="row2" style="margin-bottom:8px"><div class="field"><label>Km iniziali</label><input id="m-kmi" type="number" value="${v.km_i}"/></div><div class="field"><label>Km finali</label><input id="m-kmf" type="number" value="${v.km_f || ''}"/></div></div>
     <div class="row2" style="margin-bottom:8px"><div class="field"><label>Ritiro</label><input id="m-ritiro" type="datetime-local" value="${v.ritiro ? v.ritiro.slice(0,16) : ''}"/></div><div class="field"><label>Riconsegna</label><input id="m-riconsegna" type="datetime-local" value="${v.riconsegna ? v.riconsegna.slice(0,16) : ''}"/></div></div>
@@ -564,7 +564,7 @@ function renderModalAddUtente() {
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">👤 Nuovo utente</div>
-    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-unome"/></div><div class="field"><label>Cognome</label><input id="m-ucognome"/></div></div>
+    <div class="row2" style="margin-bottom:10px"><div class="field"><label>Nome</label><input id="m-unome"/></div><div class="field"><label>Cognome <span style="font-size:11px;color:#aaa">(opz.)</span></label><input id="m-ucognome"/></div></div>
     <div class="field" style="margin-bottom:4px"><label>Email (opzionale)</label><input id="m-uemail" placeholder="lascia vuoto per auto-generare"/></div>
     <div style="font-size:11px;color:var(--testo2);margin-bottom:8px">Auto: nome.cognome@ar7.it</div>
     <div class="field" style="margin-bottom:8px"><label>Password</label><input id="m-upass" type="password"/></div>
@@ -578,7 +578,7 @@ function renderModalEditUtente() {
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">✏️ Modifica utente</div>
-    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-unome" value="${np}"/></div><div class="field"><label>Cognome</label><input id="m-ucognome" value="${cp}"/></div></div>
+    <div class="row2" style="margin-bottom:8px"><div class="field"><label>Nome</label><input id="m-unome" value="${np}"/></div><div class="field"><label>Cognome <span style="font-size:11px;color:#aaa">(opz.)</span></label><input id="m-ucognome" value="${cp}"/></div></div>
     <div class="field" style="margin-bottom:14px"><label>Ruolo</label><select id="m-uruolo"><option ${u.ruolo === 'utente' ? 'selected' : ''} value="utente">Utente</option><option ${u.ruolo === 'admin' ? 'selected' : ''} value="admin">Admin</option><option ${u.ruolo === 'gestore' ? 'selected' : ''} value="gestore">Gestore</option></select></div>
     <button class="btn btn-success" onclick="saveEditUtente()">Salva modifiche</button>
   </div></div>`;
