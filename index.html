@@ -111,6 +111,8 @@ canvas{display:block;width:100%!important}
 // ═══════════════════════════════════════════
 const SUPABASE_URL = 'https://nxopqexvmespoghtguus.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3BxZXh2bWVzcG9naHRndXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDcwNzMsImV4cCI6MjA5MjM4MzA3M30.Ky1YUjtd-0w9jZGbv2FRv2Y0OLkJxxGITfK-y-pjZmE';
+const LOGO_DEFAULT = 'https://drive.google.com/uc?export=view&id=1YalkCKFok8INzmFUFXxLt0FyQaSwCQms';
+
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ═══════════════════════════════════════════
@@ -123,7 +125,7 @@ const APP = {
   adminTab: 'panoramica',
   modal: null,
   editId: null,
-  logoUrl: '',
+  logoUrl: LOGO_DEFAULT,
   filterUser: '',
   filterTariffa: '',
   alert: null,
@@ -150,7 +152,7 @@ let chartInstances = {};
 async function loadConfig() {
   const { data } = await sb.from('config').select('*');
   if (data) data.forEach(r => { APP.cfg[r.chiave] = isNaN(r.valore) ? r.valore : parseFloat(r.valore); });
-  APP.logoUrl = APP.cfg.logo_url || '';
+  APP.logoUrl = APP.cfg.logo_url || LOGO_DEFAULT;
 }
 
 async function loadViaggi() {
