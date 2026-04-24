@@ -674,15 +674,20 @@ window.doLogout = async function () {
 
 window.doRegistrati = async function () {
   const nome = val('r-nome').trim(), cognome = val('r-cognome').trim(), pass = val('r-pass'), pass2 = val('r-pass2');
-  if (!nome || !cognome) { APP.alert = { msg: 'Inserisci nome e cognome', tipo: 'err' }; render(); return; }
+  if (!nome) { APP.alert = { msg: 'Inserisci almeno il nome', tipo: 'err' }; render(); return; }
   if (!pass || pass.length < 6) { APP.alert = { msg: 'Password di almeno 6 caratteri', tipo: 'err' }; render(); return; }
   if (pass !== pass2) { APP.alert = { msg: 'Le password non coincidono', tipo: 'err' }; render(); return; }
   const email = generaEmail(nome, cognome);
   $('app').innerHTML = '<div class="loading"><div class="spinner"></div>Creazione account...</div>';
-  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  const nomeCompleto = nome + ' ' + cognome;
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { nome: nomeCompleto } }
+  });
   if (error) { APP.alert = { msg: 'Errore: ' + error.message, tipo: 'err' }; render(); return; }
-  // Inserisce il profilo
-  await sb.from('profili').insert({ id: data.user.id, nome: nome + ' ' + cognome, ruolo: 'utente' });
+  // Inserisce il profilo esplicitamente (nel caso il trigger non sia attivo)
+  await sb.from('profili').upsert({ id: data.user.id, nome: nomeCompleto, ruolo: 'utente' });
   APP.regResult = { email, pass }; APP.alert = null; render();
 };
 
@@ -691,8 +696,8 @@ window.doRegistrati = async function () {
 // ═══════════════════════════════════════════
 window.salvaProfilo = async function () {
   const nome = val('p-nome').trim(), cognome = val('p-cognome').trim(), pass = val('p-pass');
-  if (!nome || !cognome) { showAlert('Inserisci nome e cognome', 'err'); return; }
-  const nomeCompleto = nome + ' ' + cognome;
+  if (!nome) { showAlert('Inserisci almeno il nome', 'err'); return; }
+  const nomeCompleto = cognome ? nome + ' ' + cognome : nome;
   await sb.from('profili').update({ nome: nomeCompleto }).eq('id', APP.user.id);
   if (pass && pass.length >= 6) await sb.auth.updateUser({ password: pass });
   APP.profilo.nome = nomeCompleto;
@@ -705,7 +710,7 @@ window.salvaProfilo = async function () {
 window.iniziaViaggio = function () {
   const nome = val('f-nome').trim(), cognome = val('f-cognome').trim(), utilizzo = val('f-utilizzo').trim();
   const km_i = parseFloat(val('f-kmi')), ritiro = val('f-ritiro');
-  if (!nome || !cognome) { showAlert('Inserisci nome e cognome', 'err'); return; }
+  if (!nome) { showAlert('Inserisci almeno il nome', 'err'); return; }
   if (!utilizzo) { showAlert('Inserisci utilizzo/destinazione', 'err'); return; }
   if (!km_i) { showAlert('Inserisci i km iniziali', 'err'); return; }
   if (!ritiro) { showAlert('Inserisci data e ora di ritiro', 'err'); return; }
@@ -757,8 +762,8 @@ window.openAddUtente = () => { APP.modal = 'add-utente'; render(); };
 window.saveAddUtente = async function () {
   const nome = val('m-unome').trim(), cognome = val('m-ucognome').trim(), pass = val('m-upass'), ruolo = val('m-uruolo');
   let email = val('m-uemail').trim();
-  if (!nome || !cognome || !pass) { showAlert('Compila nome, cognome e password', 'err'); return; }
-  if (!email) email = generaEmail(nome, cognome);
+  if (!nome || !pass) { showAlert('Compila almeno nome e password', 'err'); return; }
+  if (!email) email = generaEmail(nome, cognome || '');
   const { data, error } = await sb.auth.admin ? 
     // Se disponibile usa admin API
     { data: null, error: { message: 'usa signup normale' } } :
