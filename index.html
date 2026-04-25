@@ -421,7 +421,27 @@ function renderAdminTeam() {
     ${gestore ? `<button class="btn btn-success btn-sm" onclick="openAddTeam()">+ Aggiungi</button>` : ''}
   </div>
   ${APP.team.length === 0 ? `<div class="empty-state"><div class="empty-icon">🏕</div><p>Nessun team</p></div>` :
-    APP.team.map(t => { const resp = APP.utenti.find(u => u.id === t.responsabile_id); return `<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700;font-size:16px;margin-bottom:4px">🏕 ${t.nome}</div><div style="font-size:13px;color:var(--testo2)">Responsabile: <b>${resp ? resp.nome : '—'}</b></div>${t.descrizione ? `<div style="font-size:13px;color:var(--testo2);margin-top:2px">${t.descrizione}</div>` : ''}</div>${gestore ? `<div style="display:flex;gap:6px;flex-shrink:0"><button class="btn btn-outline btn-sm" onclick="openEditTeam('${t.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></div>` : ''}</div></div>`; }).join('')}`;
+    APP.team.map(t => {
+      const resp = APP.utenti.find(u => u.id === t.responsabile_id);
+      const membri = (t.membri || []).map(id => APP.utenti.find(u => u.id === id)).filter(Boolean);
+      return `<div class="card" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:16px;margin-bottom:4px">🏕 ${t.nome}</div>
+            <div style="font-size:13px;color:var(--testo2)">Responsabile: <b>${resp ? resp.nome : '—'}</b></div>
+            ${t.descrizione ? `<div style="font-size:13px;color:var(--testo2);margin-top:2px">${t.descrizione}</div>` : ''}
+            ${membri.length > 0 ? `
+              <div style="margin-top:8px">
+                <div style="font-size:11px;color:var(--testo2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Membri (${membri.length})</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  ${membri.map(m => `<span style="background:var(--grigio-bg);border:0.5px solid var(--bordo);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500">${m.nome}</span>`).join('')}
+                </div>
+              </div>` : `<div style="font-size:12px;color:#bbb;margin-top:6px">Nessun membro assegnato</div>`}
+          </div>
+          ${gestore ? `<div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px"><button class="btn btn-outline btn-sm" onclick="openEditTeam('${t.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></div>` : ''}
+        </div>
+      </div>`;
+    }).join('')}`;
 }
 
 // ═══════════════════════════════════════════
@@ -585,25 +605,57 @@ function renderModalEditUtente() {
     <button class="btn btn-success" onclick="saveEditUtente()">Salva modifiche</button>
   </div></div>`;
 }
+function renderModalEditTeam() {
+  const t = APP.team.find(x => x.id === APP.editId); if (!t) return '';
+  const membri = t.membri || [];
+  return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <div class="modal-title">✏️ Modifica team</div>
+    <div class="field" style="margin-bottom:8px"><label>Nome team</label><input id="m-tnome" value="${t.nome}"/></div>
+    <div class="field" style="margin-bottom:8px"><label>Descrizione</label><input id="m-tdesc" value="${t.descrizione || ''}"/></div>
+    <div class="field" style="margin-bottom:12px"><label>Responsabile</label>
+      <select id="m-tresp">${APP.utenti.map(u => `<option value="${u.id}" ${t.responsabile_id === u.id ? 'selected' : ''}>${u.nome}</option>`).join('')}</select>
+    </div>
+    <div class="card-title" style="margin-bottom:8px">Membri del team</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      ${APP.utenti.map(u => `
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--grigio-bg);border-radius:9px;cursor:pointer;margin:0">
+          <input type="checkbox" value="${u.id}" ${membri.includes(u.id) ? 'checked' : ''}
+            style="width:18px;height:18px;cursor:pointer;accent-color:var(--blu);flex-shrink:0"
+            onchange="toggleMembro('${u.id}',this.checked)"/>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--testo)">${u.nome}</div>
+            <div style="font-size:11px;color:var(--testo2)">${u.ruolo}</div>
+          </div>
+        </label>`).join('')}
+    </div>
+    <button class="btn btn-success" onclick="saveEditTeam()">Salva modifiche</button>
+  </div></div>`;
+}
+
 function renderModalAddTeam() {
   return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
     <button class="close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">🏕 Nuovo team</div>
     <div class="field" style="margin-bottom:8px"><label>Nome team</label><input id="m-tnome"/></div>
     <div class="field" style="margin-bottom:8px"><label>Descrizione</label><input id="m-tdesc"/></div>
-    <div class="field" style="margin-bottom:14px"><label>Responsabile</label><select id="m-tresp">${APP.utenti.map(u => `<option value="${u.id}">${u.nome}</option>`).join('')}</select></div>
+    <div class="field" style="margin-bottom:12px"><label>Responsabile</label>
+      <select id="m-tresp">${APP.utenti.map(u => `<option value="${u.id}">${u.nome}</option>`).join('')}</select>
+    </div>
+    <div class="card-title" style="margin-bottom:8px">Membri del team</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      ${APP.utenti.map(u => `
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--grigio-bg);border-radius:9px;cursor:pointer;margin:0">
+          <input type="checkbox" value="${u.id}"
+            style="width:18px;height:18px;cursor:pointer;accent-color:var(--blu);flex-shrink:0"
+            onchange="toggleMembro('${u.id}',this.checked)"/>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--testo)">${u.nome}</div>
+            <div style="font-size:11px;color:var(--testo2)">${u.ruolo}</div>
+          </div>
+        </label>`).join('')}
+    </div>
     <button class="btn btn-success" onclick="saveAddTeam()">Crea team</button>
-  </div></div>`;
-}
-function renderModalEditTeam() {
-  const t = APP.team.find(x => x.id === APP.editId); if (!t) return '';
-  return `<div class="modal-overlay" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">
-    <button class="close-btn" onclick="closeModal()">✕</button>
-    <div class="modal-title">✏️ Modifica team</div>
-    <div class="field" style="margin-bottom:8px"><label>Nome team</label><input id="m-tnome" value="${t.nome}"/></div>
-    <div class="field" style="margin-bottom:8px"><label>Descrizione</label><input id="m-tdesc" value="${t.descrizione || ''}"/></div>
-    <div class="field" style="margin-bottom:14px"><label>Responsabile</label><select id="m-tresp">${APP.utenti.map(u => `<option value="${u.id}" ${t.responsabile_id === u.id ? 'selected' : ''}>${u.nome}</option>`).join('')}</select></div>
-    <button class="btn btn-success" onclick="saveEditTeam()">Salva modifiche</button>
   </div></div>`;
 }
 
@@ -793,25 +845,39 @@ window.deleteUtente = async id => {
 // ═══════════════════════════════════════════
 //  ACTIONS — TEAM
 // ═══════════════════════════════════════════
+// Stato temporaneo membri selezionati nel modal
+APP.membriSelezionati = [];
+
+window.toggleMembro = function(uid, checked) {
+  if (!APP.membriSelezionati) APP.membriSelezionati = [];
+  if (checked) { if (!APP.membriSelezionati.includes(uid)) APP.membriSelezionati.push(uid); }
+  else { APP.membriSelezionati = APP.membriSelezionati.filter(id => id !== uid); }
+};
+
 window.openAddTeam = async () => {
   if (APP.utenti.length === 0) await loadUtenti();
+  APP.membriSelezionati = [];
   APP.modal = 'add-team'; render();
 };
 window.saveAddTeam = async function () {
   const nome = val('m-tnome').trim(), desc = val('m-tdesc').trim(), resp = val('m-tresp');
   if (!nome) { showAlert('Inserisci il nome del team', 'err'); return; }
-  const { error } = await sb.from('team').insert({ nome, descrizione: desc, responsabile_id: resp || null });
+  const { error } = await sb.from('team').insert({ nome, descrizione: desc, responsabile_id: resp || null, membri: APP.membriSelezionati });
   if (error) { showAlert('Errore: ' + error.message, 'err'); return; }
+  APP.membriSelezionati = [];
   await loadTeam(); APP.modal = null; showAlert('✓ Team creato', 'ok'); render();
 };
 window.openEditTeam = async id => {
   if (APP.utenti.length === 0) await loadUtenti();
+  const t = APP.team.find(x => x.id === id);
+  APP.membriSelezionati = t ? [...(t.membri || [])] : [];
   APP.modal = 'edit-team'; APP.editId = id; render();
 };
 window.saveEditTeam = async function () {
   const t = APP.team.find(x => x.id === APP.editId); if (!t) return;
-  const { error } = await sb.from('team').update({ nome: val('m-tnome').trim(), descrizione: val('m-tdesc').trim(), responsabile_id: val('m-tresp') || null }).eq('id', APP.editId);
+  const { error } = await sb.from('team').update({ nome: val('m-tnome').trim(), descrizione: val('m-tdesc').trim(), responsabile_id: val('m-tresp') || null, membri: APP.membriSelezionati }).eq('id', APP.editId);
   if (error) { showAlert('Errore: ' + error.message, 'err'); return; }
+  APP.membriSelezionati = [];
   await loadTeam(); APP.modal = null; showAlert('✓ Team aggiornato', 'ok'); render();
 };
 window.deleteTeam = async id => {
