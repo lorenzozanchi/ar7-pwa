@@ -173,10 +173,21 @@ async function loadTeam() {
   APP.team = data || [];
 }
 
+// Trova i team a cui appartiene l'utente corrente
+function getMieiTeam() {
+  const uid = APP.user ? APP.user.id : null;
+  if (!uid) return [];
+  return APP.team.filter(t =>
+    t.responsabile_id === uid ||
+    (t.membri || []).includes(uid)
+  );
+}
+
 async function loadAll() {
   await loadConfig();
   await loadViaggi();
-  if (isAdmin(APP.profilo)) { await loadUtenti(); await loadTeam(); }
+  await loadTeam(); // caricato per tutti i ruoli
+  if (isAdmin(APP.profilo)) { await loadUtenti(); }
 }
 
 // ═══════════════════════════════════════════
@@ -325,9 +336,32 @@ function renderStorico() {
   if (f) list = list.filter(v => f === 'ND' ? !v.tariffa : v.tariffa === f);
   if (fu && tutti) list = list.filter(v => (v.nome + ' ' + v.cognome).toLowerCase().includes(fu.toLowerCase()));
   list = list.slice().reverse();
+
+  // Blocco team per utente normale
+  let teamBlock = '';
+  if (!tutti) {
+    const mieiTeam = getMieiTeam();
+    if (mieiTeam.length > 0) {
+      teamBlock = mieiTeam.map(t => {
+        const resp = APP.utenti.find(u => u.id === t.responsabile_id);
+        return `<div class="card" style="background:linear-gradient(135deg,#eef5ff,#f4f5f8);border:1px solid #cce0ff">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:28px">🏕</div>
+            <div>
+              <div style="font-weight:700;font-size:15px;color:var(--blu)">${t.nome}</div>
+              ${t.descrizione ? `<div style="font-size:12px;color:var(--testo2)">${t.descrizione}</div>` : ''}
+              ${resp ? `<div style="font-size:12px;color:var(--testo2);margin-top:2px">Responsabile: <b>${resp.nome}</b></div>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
   return `
   <div class="section-title">${tutti ? 'Tutti i viaggi' : 'I miei viaggi'}</div>
   <div class="sub-title">${list.length} viaggio/i</div>
+  ${teamBlock}
   ${tutti ? `<input id="filter-user" placeholder="🔍 Cerca per nome..." value="${fu}" oninput="APP.filterUser=this.value;renderInner()" style="margin-bottom:8px"/>` : ''}
   <div class="filter-row">${['', 'AR7', 'Scout', 'Altro', 'ND'].map(k => `<button class="pill ${f === k ? 'sel' : ''}" onclick="APP.filterTariffa='${k}';renderInner()">${k === '' ? 'Tutti' : k === 'ND' ? 'N/D' : k === 'Scout' ? 'Altri Scout' : k}</button>`).join('')}</div>
   <div class="card">${list.length === 0 ? `<div class="empty-state"><div class="empty-icon">🚐</div><p>Nessun viaggio</p></div>` : list.map(v => renderEntryItem(v, tutti)).join('')}</div>`;
@@ -430,13 +464,14 @@ function renderAdminTeam() {
             <div style="font-weight:700;font-size:16px;margin-bottom:4px">🏕 ${t.nome}</div>
             <div style="font-size:13px;color:var(--testo2)">Responsabile: <b>${resp ? resp.nome : '—'}</b></div>
             ${t.descrizione ? `<div style="font-size:13px;color:var(--testo2);margin-top:2px">${t.descrizione}</div>` : ''}
-            ${membri.length > 0 ? `
+            ${gestore && membri.length > 0 ? `
               <div style="margin-top:8px">
                 <div style="font-size:11px;color:var(--testo2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Membri (${membri.length})</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
                   ${membri.map(m => `<span style="background:var(--grigio-bg);border:0.5px solid var(--bordo);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500">${m.nome}</span>`).join('')}
                 </div>
-              </div>` : `<div style="font-size:12px;color:#bbb;margin-top:6px">Nessun membro assegnato</div>`}
+              </div>` : ''}
+            ${gestore && membri.length === 0 ? `<div style="font-size:12px;color:#bbb;margin-top:6px">Nessun membro assegnato</div>` : ''}
           </div>
           ${gestore ? `<div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px"><button class="btn btn-outline btn-sm" onclick="openEditTeam('${t.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></div>` : ''}
         </div>
