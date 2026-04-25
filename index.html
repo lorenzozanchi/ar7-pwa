@@ -793,17 +793,25 @@ window.deleteUtente = async id => {
 // ═══════════════════════════════════════════
 //  ACTIONS — TEAM
 // ═══════════════════════════════════════════
-window.openAddTeam = () => { APP.modal = 'add-team'; render(); };
+window.openAddTeam = async () => {
+  if (APP.utenti.length === 0) await loadUtenti();
+  APP.modal = 'add-team'; render();
+};
 window.saveAddTeam = async function () {
   const nome = val('m-tnome').trim(), desc = val('m-tdesc').trim(), resp = val('m-tresp');
   if (!nome) { showAlert('Inserisci il nome del team', 'err'); return; }
-  await sb.from('team').insert({ nome, descrizione: desc, responsabile_id: resp || null });
+  const { error } = await sb.from('team').insert({ nome, descrizione: desc, responsabile_id: resp || null });
+  if (error) { showAlert('Errore: ' + error.message, 'err'); return; }
   await loadTeam(); APP.modal = null; showAlert('✓ Team creato', 'ok'); render();
 };
-window.openEditTeam = id => { APP.modal = 'edit-team'; APP.editId = id; render(); };
+window.openEditTeam = async id => {
+  if (APP.utenti.length === 0) await loadUtenti();
+  APP.modal = 'edit-team'; APP.editId = id; render();
+};
 window.saveEditTeam = async function () {
   const t = APP.team.find(x => x.id === APP.editId); if (!t) return;
-  await sb.from('team').update({ nome: val('m-tnome').trim(), descrizione: val('m-tdesc').trim(), responsabile_id: val('m-tresp') || null }).eq('id', APP.editId);
+  const { error } = await sb.from('team').update({ nome: val('m-tnome').trim(), descrizione: val('m-tdesc').trim(), responsabile_id: val('m-tresp') || null }).eq('id', APP.editId);
+  if (error) { showAlert('Errore: ' + error.message, 'err'); return; }
   await loadTeam(); APP.modal = null; showAlert('✓ Team aggiornato', 'ok'); render();
 };
 window.deleteTeam = async id => {
