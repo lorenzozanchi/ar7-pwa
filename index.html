@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#3693ff">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Furgone AR7</title>
 <link rel="icon" type="image/png" href="/logo.png">
@@ -94,6 +95,8 @@ input:focus,select:focus{border-color:var(--blu)}
 .filter-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .pill{padding:5px 14px;border-radius:20px;border:1.5px solid var(--bordo);font-size:13px;cursor:pointer;background:#fff;color:var(--testo);transition:all .2s;white-space:nowrap}
 .pill.sel{background:var(--blu);color:#fff;border-color:var(--blu)}
+.req{color:var(--danger);margin-left:2px;font-size:13px}
+.field-err input,.field-err select{border-color:var(--danger)!important;background:#fff8f8!important}
 .loading{text-align:center;padding:40px;color:var(--testo2);font-size:15px}
 .spinner{width:36px;height:36px;border:3px solid var(--bordo);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
