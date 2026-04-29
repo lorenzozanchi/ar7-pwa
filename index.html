@@ -150,7 +150,7 @@ async function loadTeam() {
 }
 async function loadAll() {
   await loadConfig();
-  await loadViaggi();
+  await loadViaggi(); // loadViaggi gestisce già il viaggio in corso globale
   await loadTeam();
   if (isAdmin(APP.profilo)) { await loadUtenti(); }
 }
@@ -701,16 +701,22 @@ window.doLoginConCredenziali = async function(email,pass) {
   await loadAll();
   APP.subview=null; APP.regResult=null; APP.tab='nuovo'; render();
 };
-window.doAnonimo = function() {
+window.doAnonimo = async function() {
   APP.user={id:'anon-'+Math.random().toString(36).substr(2,9),email:''};
   APP.profilo={id:APP.user.id,nome:'Ospite',ruolo:'utente',anonimo:true};
-  APP.viaggi=[]; APP.nuovoDraft={}; APP.viaggioInCorso=null; APP.tab='nuovo'; render();
+  APP.viaggi=[]; APP.nuovoDraft={}; APP.tab='nuovo';
+  // Carica subito il viaggio in corso anche per l'ospite
+  const {data:inCorso}=await sb.from('viaggi').select('*').eq('completato',false).maybeSingle();
+  APP.viaggioInCorso=inCorso||null;
+  render();
 };
 window.doLogout = async function() {
   await sb.auth.signOut();
   APP.user=null; APP.profilo=null; APP.viaggi=[]; APP.utenti=[]; APP.team=[];
-  APP.nuovoDraft={}; APP.viaggioInCorso=null;
-  APP.tab='nuovo'; APP.alert=null; render();
+  APP.nuovoDraft={}; APP.tab='nuovo'; APP.alert=null;
+  // NON azzerare APP.viaggioInCorso — è sul DB, viene ricaricato al prossimo login
+  APP.viaggioInCorso=null;
+  render();
 };
 window.doRegistrati = async function() {
   const nome=val('r-nome').trim(), cognome=val('r-cognome').trim(), pass=val('r-pass'), pass2=val('r-pass2');
