@@ -689,6 +689,9 @@ window.doLogin = async function() {
     APP.profilo=p2;
   } else { APP.profilo=profilo; }
   await loadAll();
+  // Carica esplicitamente il viaggio in corso dopo il login
+  const {data:inCorso}=await sb.from('viaggi').select('*').eq('completato',false).maybeSingle();
+  APP.viaggioInCorso=inCorso||null;
   APP.tab='nuovo'; APP.alert=null; render();
 };
 window.doLoginConCredenziali = async function(email,pass) {
