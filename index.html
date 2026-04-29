@@ -107,10 +107,8 @@ canvas{display:block;width:100%!important}
 <div id="app"><div class="loading"><div class="spinner"></div>Caricamento...</div></div>
 <script>
 const SUPABASE_URL = 'https://nxopqexvmespoghtguus.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3BxZXh2bWVzcG9naHRndXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDcwNzMsImV4cCI6MjA5MjM4MzA3M30.Ky1YUjtd-0w9jZGbv2FRv2Y0OLkJxxGITfK-y-pjZmE';
+const SUPABASE_KEY = 'INSERISCI_QUI_LA_NUOVA_CHIAVE_DOPO_AVERLA_RIGENERATA';
 const LOGO_DEFAULT = '/logo.png';
-const CALENDAR_ID = 'INSERISCI_QUI_IL_TUO_CALENDAR_ID';
-const GCAL_API_KEY = 'INSERISCI_QUI_LA_TUA_GOOGLE_API_KEY';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const APP = {
@@ -215,7 +213,6 @@ function render() {
   app.innerHTML=`<div style="display:flex;flex-direction:column;min-height:100vh">${renderTopbar()}<div class="content" id="main-content">${renderAlert()}${renderMain()}</div>${renderBottomNav()}</div>${APP.modal?renderModal():''}`;
   bindMain();
   if (APP.tab==='statistiche') setTimeout(initCharts,80);
-  if (APP.tab==='calendario') setTimeout(initCalendario,50);
 }
 
 function renderAlert() { if(!APP.alert) return ''; return `<div class="alert alert-${APP.alert.tipo==='ok'?'ok':'err'}">${APP.alert.msg}</div>`; }
@@ -460,61 +457,16 @@ function buildPie(canvasId,legendId,labels,data,colors) {
 function renderCalendario() {
   return `
   <div class="section-title">Calendario prenotazioni</div>
-  <div class="sub-title">Disponibilità furgone</div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <div id="cal-container" style="min-height:400px;display:flex;align-items:center;justify-content:center">
-      <div class="loading"><div class="spinner"></div>Caricamento eventi...</div>
-    </div>
-  </div>`;
-}
-async function initCalendario() {
-  const container=$('cal-container');
-  if (!container) return;
-  try {
-    const oggi=new Date();
-    const tra6mesi=new Date(); tra6mesi.setMonth(tra6mesi.getMonth()+6);
-    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${oggi.toISOString()}&timeMax=${tra6mesi.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=50`;
-    const res=await fetch(url);
-    if (!res.ok) throw new Error('Errore API Google Calendar');
-    const data=await res.json();
-    const eventi=data.items||[];
-    if (eventi.length===0) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><p>Nessuna prenotazione in programma</p></div>`; return; }
-    const perMese={};
-    eventi.forEach(e=>{
-      const start=e.start.dateTime||e.start.date;
-      const d=new Date(start);
-      const chiave=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      const lbl=d.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
-      if (!perMese[chiave]) perMese[chiave]={lbl,eventi:[]};
-      perMese[chiave].eventi.push(e);
-    });
-    container.innerHTML=`<div style="width:100%;padding:16px;display:flex;flex-direction:column;gap:16px">
-      ${Object.values(perMese).map(m=>`
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--blu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bordo)">${m.lbl}</div>
-          ${m.eventi.map(e=>{
-            const start=e.start.dateTime||e.start.date;
-            const end=e.end.dateTime||e.end.date;
-            const isAllDay=!e.start.dateTime;
-            const dStart=new Date(start); const dEnd=new Date(end);
-            const oraStr=isAllDay?'Tutto il giorno':dStart.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+' → '+dEnd.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
-            return `<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:0.5px solid var(--bordo)">
-              <div style="background:var(--blu);color:#fff;border-radius:10px;padding:6px 10px;text-align:center;min-width:48px;flex-shrink:0">
-                <div style="font-size:18px;font-weight:700;line-height:1">${dStart.getDate()}</div>
-                <div style="font-size:10px;opacity:.85">${dStart.toLocaleDateString('it-IT',{weekday:'short'}).toUpperCase()}</div>
-              </div>
-              <div style="flex:1">
-                <div style="font-weight:700;font-size:15px;color:var(--testo)">🚐 Prenotato</div>
-                <div style="font-size:12px;color:var(--testo2);margin-top:2px">⏰ ${oraStr}</div>
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-      `).join('')}
-    </div>`;
-  } catch(err) {
-    container.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:var(--danger)">Errore caricamento calendario.<br><small>${err.message}</small></p></div>`;
-  }
+  <div class="sub-title">Disponibilità furgone AR7</div>
+  <div class="card" style="padding:0;overflow:hidden;border-radius:14px">
+    <iframe
+      src="https://calendar.google.com/calendar/embed?src=furgonear7%40gmail.com&ctz=Europe%2FRome&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&mode=MONTH"
+      style="border:0;display:block;width:100%;height:70vh;min-height:480px"
+      frameborder="0"
+      scrolling="yes">
+    </iframe>
+  </div>
+  <div style="font-size:12px;color:var(--testo2);text-align:center;margin-top:4px">📅 Tocca un evento per i dettagli</div>`;
 }
 
 /* ---- IMPOSTAZIONI ---- */
