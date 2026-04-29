@@ -751,7 +751,7 @@ function clearFieldErrs() {
   ['fnome','futilizzo','fkmi','fritiro','fkmf','friconsegna','fpieno'].forEach(id => fieldErr(id, false));
 }
 
-window.iniziaViaggio = function() {
+window.iniziaViaggio = async function() {
   const nome=val('f-nome').trim(), cognome=val('f-cognome').trim();
   const utilizzo=val('f-utilizzo').trim(), km_i=parseFloat(val('f-kmi')), ritiro=val('f-ritiro');
   clearFieldErrs();
@@ -761,8 +761,15 @@ window.iniziaViaggio = function() {
   if (!km_i) { fieldErr('fkmi',true); ok=false; }
   if (!ritiro) { fieldErr('fritiro',true); ok=false; }
   if (!ok) { showAlert('Compila i campi obbligatori (*)','err'); return; }
-  APP.viaggioInCorso={nome,cognome,utilizzo,km_i,ritiro};
+  // Salva subito nel DB con completato=false
+  const {data,error}=await sb.from('viaggi').insert({
+    uid:APP.user.id, nome, cognome:cognome||'', utilizzo,
+    km_i, ritiro, tariffa:null, pieno:false, approvato:false, completato:false
+  }).select().single();
+  if (error) { showAlert('Errore salvataggio: '+error.message,'err'); return; }
+  APP.viaggioInCorso={...data};
   APP.nuovoDraft={};
+  showAlert('✓ Partenza salvata!','ok',2000);
   render();
 };
 
@@ -775,15 +782,22 @@ window.completaViaggio = async function() {
   if (!riconsegna) { fieldErr('friconsegna',true); ok=false; }
   if (!pieno) { fieldErr('fpieno',true); ok=false; }
   if (!ok) { showAlert('Compila i campi obbligatori (*)','err'); return; }
-  const {error}=await sb.from('viaggi').insert({uid:APP.user.id,nome:vp.nome,cognome:vp.cognome||'',utilizzo:vp.utilizzo,km_i:vp.km_i,km_f,ritiro:vp.ritiro,riconsegna,tariffa:null,pieno:pieno==='si',approvato:false});
+  // Aggiorna il record esistente
+  const {error}=await sb.from('viaggi').update({
+    km_f, riconsegna, pieno:pieno==='si', completato:true
+  }).eq('id',vp.id);
   if (error) { showAlert('Errore salvataggio: '+error.message,'err'); return; }
   APP.viaggioInCorso=null; APP.nuovoDraft={};
   await loadViaggi();
   showAlert('✓ Viaggio completato e registrato!','ok'); APP.tab='storico'; render();
 };
 
-window.annullaViaggio = function() {
-  if(!confirm('Annullare il viaggio in corso?')) return;
+window.annullaViaggio = async function() {
+  if(!confirm('Annullare il viaggio in corso? Il record parziale verrà eliminato.')) return;
+  if (APP.viaggioInCorso?.id) {
+    await sb.from('viaggi').delete().eq('id', APP.viaggioInCorso.id);
+    await loadViaggi();
+  }
   APP.viaggioInCorso=null; APP.nuovoDraft={}; render();
 };
 window.openEditViaggio = id => { APP.modal='edit-viaggio'; APP.editId=id; render(); };
