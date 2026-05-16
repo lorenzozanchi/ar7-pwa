@@ -1,0 +1,19 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # ogni giorno alle 8:00
+  workflow_dispatch:       # permette anche avvio manuale
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -s \
+            -H "apikey: ${{ secrets.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3BxZXh2bWVzcG9naHRndXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDcwNzMsImV4cCI6MjA5MjM4MzA3M30.Ky1YUjtd-0w9jZGbv2FRv2Y0OLkJxxGITfK-y-pjZmE }}" \
+            -H "Authorization: Bearer ${{ secrets.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3BxZXh2bWVzcG9naHRndXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDcwNzMsImV4cCI6MjA5MjM4MzA3M30.Ky1YUjtd-0w9jZGbv2FRv2Y0OLkJxxGITfK-y-pjZmE }}" \
+            "https://nxopqexvmespoghtguus.supabase.co/rest/v1/config?select=chiave&limit=1" \
+            > /dev/null
+          echo "Ping completato: $(date)"
